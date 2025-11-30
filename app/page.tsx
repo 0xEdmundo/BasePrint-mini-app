@@ -1,6 +1,7 @@
-'use client';
+// app/page.tsx
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 import {
   useAccount,
   useConnect,
@@ -8,40 +9,51 @@ import {
   useWriteContract,
   useEnsName,
   type BaseError,
-} from 'wagmi';
-import { createConfig, http, WagmiProvider } from 'wagmi';
-import { base } from 'wagmi/chains';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { injected, coinbaseWallet } from 'wagmi/connectors';
-import { parseEther } from 'viem';
-// Farcaster SDK'sını ekliyoruz (Eğer yüklü değilse npm install @farcaster/frame-sdk yapın)
-import sdk from '@farcaster/frame-sdk';
+} from "wagmi";
+import { createConfig, http, WagmiProvider } from "wagmi";
+import { base } from "wagmi/chains";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { injected, coinbaseWallet } from "wagmi/connectors";
+import { parseEther } from "viem";
+import sdk from "@farcaster/frame-sdk";
 
-// --- 1. CONFIG & API KEYS ---
-const NEYNAR_API_KEY = process.env.NEXT_PUBLIC_NEYNAR_API_KEY || '';
-const ETHERSCAN_API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || '';
-const CONTRACT_ADDRESS = '0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2';
-const BASE_APP_URL = "https://baseprint.vercel.app"; 
+// --- 1. CONFIG & CONSTANTS ---
+const CONTRACT_ADDRESS = "0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2";
+const BASEPRINT_MINIAPP_URL =
+  "https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint";
 
-// --- 2. WAGMI SETUP ---
 const queryClient = new QueryClient();
 
 const config = createConfig({
   chains: [base],
   transports: { [base.id]: http() },
   connectors: [
-    // Farcaster içinde injected (Warpcast wallet) daha öncelikli olabilir
-    injected(), 
-    coinbaseWallet({ appName: 'BasePrint', preference: 'smartWalletOnly' }),
+    injected(),
+    coinbaseWallet({ appName: "BasePrint", preference: "smartWalletOnly" }),
   ],
 });
 
-// --- 3. ICONS ---
+// --- ICONS (hiç dokunmadım) ---
 const AppLogo = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    viewBox="0 0 100 100"
+    className={className}
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <circle cx="50" cy="50" r="50" fill="#0052FF" />
-    <path d="M50 20C33.4315 20 20 33.4315 20 50C20 66.5685 33.4315 80 50 80C66.5685 80 80 66.5685 80 50" stroke="white" strokeWidth="5" strokeLinecap="round" />
-    <path d="M50 35C41.7157 35 35 41.7157 35 50C35 58.2843 41.7157 65 50 65" stroke="white" strokeWidth="5" strokeLinecap="round" />
+    <path
+      d="M50 20C33.4315 20 20 33.4315 20 50C20 66.5685 33.4315 80 50 80C66.5685 80 80 66.5685 80 50"
+      stroke="white"
+      strokeWidth="5"
+      strokeLinecap="round"
+    />
+    <path
+      d="M50 35C41.7157 35 35 41.7157 35 50C35 58.2843 41.7157 65 50 65"
+      stroke="white"
+      strokeWidth="5"
+      strokeLinecap="round"
+    />
     <circle cx="50" cy="50" r="4" fill="white" />
   </svg>
 );
@@ -52,161 +64,82 @@ const FarcasterIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// --- 4. LOGIC ---
-const calculateStreak = (uniqueDates: string[]) => {
-  if (!uniqueDates.length) return 0;
-  const sortedDates = [...uniqueDates].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  let longestStreak = 1;
-  let currentStreak = 1;
-  for (let i = 0; i < sortedDates.length - 1; i++) {
-    const d1 = new Date(sortedDates[i]);
-    const d2 = new Date(sortedDates[i+1]);
-    const diffTime = Math.abs(d1.getTime() - d2.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    if (diffDays === 1) {
-      currentStreak++;
-    } else {
-      if (currentStreak > longestStreak) longestStreak = currentStreak;
-      currentStreak = 1;
-    }
-  }
-  if (currentStreak > longestStreak) longestStreak = currentStreak;
-  return longestStreak;
+// --- Farcaster Share Link (BasePrint ID + miniapp embed) ---
+const createFarcasterCastUrl = (username: string, isVerified: boolean) => {
+  const verificationStatus = isVerified ? "✅ Verified" : "🔍 Unverified";
+
+  const castText = `
+Just minted my BasePrint ID on Base! 🚀
+
+Username: @${username}
+BasePrint Status: ${verificationStatus}
+
+BasePrint turns your Farcaster reputation + Base onchain history into a single NFT identity card.
+
+Mint yours directly from the mini-app 👇
+${BASEPRINT_MINIAPP_URL}
+`.trim();
+
+  return (
+    "https://warpcast.com/~/compose?text=" +
+    encodeURIComponent(castText) +
+    "&embeds[]=" +
+    encodeURIComponent(BASEPRINT_MINIAPP_URL)
+  );
 };
 
-const calculateWalletAgeDays = (firstTxTimestamp: number) => {
-  if (!firstTxTimestamp) return 0;
-  const now = new Date().getTime();
-  const firstDate = new Date(firstTxTimestamp * 1000).getTime();
-  const diffTime = Math.abs(now - firstDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-};
-
-const analyzeTransactions = (txs: any[]) => {
-  let bridge = 0, deployed = 0, interactions = 0;
-  txs.forEach((tx: any) => {
-    if (!tx.to || tx.to === '') { deployed++; return; }
-    const method = tx.methodId || (tx.input && tx.input.length >= 10 ? tx.input.substring(0, 10) : null);
-    if (method && method !== '0x') {
-      interactions++;
-      if (['0x32b7006d', '0x49228978', '0x5cae9c06', '0x9a2ac9d9'].includes(method)) bridge++;
-    }
-  });
-  const defi = Math.max(0, Math.floor((interactions - bridge) * 0.4));
-  return { bridge, defi, deployed };
-};
-
-// YENİ: Farcaster Paylaşım Linki Oluşturucu
-const createFarcasterCastUrl = (username: string, tokenId: string, isVerified: boolean) => {
-    // NFT'nin metadata API linki (görsel/embed için)
-    // Token ID varsa onu kullan, yoksa genel görsel
-    const nftMetadataUrl = tokenId ? `${BASE_APP_URL}/api/token/${tokenId}` : BASE_APP_URL; 
-    
-    const verificationStatus = isVerified ? "✅ Verified" : "🔍 Unverified";
-    
-    const castText = `Just minted my BasePrint Identity! 🚀\n\nUsername: @${username}\nBase Status: ${verificationStatus}\n\nMint your BasePrint NFT and prove your onchain identity on Base!\n\n#BasePrint #Base #Farcaster`;
-    return `https://warpcast.com/~/compose?text=${encodeURIComponent(castText.trim())}&embeds[]=${nftMetadataUrl}`;
-};
-
-// --- 5. MAIN COMPONENT ---
+// --- MAIN CONTENT ---
 function BasePrintContent() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
-  const { writeContract, isPending, isSuccess, error: mintError } = useWriteContract();
+  const {
+    writeContract,
+    isPending,
+    isSuccess,
+    error: mintError,
+  } = useWriteContract();
   const { data: ensName } = useEnsName({ address, chainId: base.id });
 
   const [loading, setLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
-  const [context, setContext] = useState<any>(null); // Farcaster Context
 
   // --- FARCASTER SDK INIT & SPLASH ---
   useEffect(() => {
     const init = async () => {
-        try {
-            // Farcaster SDK'ya hazır olduğumuzu bildir
-            // Bu, uygulamanın Farcaster içinde açıldığında yükleme ekranını kaldırmasını sağlar
-            await sdk.actions.ready();
-            
-            // Context'i al (Opsiyonel, kullanıcı verisi için)
-            /* const ctx = await sdk.context;
-            setContext(ctx); 
-            */
-        } catch (e) {
-            console.log("Farcaster SDK Error:", e);
-        } finally {
-            // Her durumda Splash'ı kaldır (Fallback)
-            setTimeout(() => setShowSplash(false), 2000);
-        }
+      try {
+        await sdk.actions.ready();
+      } catch (e) {
+        console.log("Farcaster SDK Error:", e);
+      } finally {
+        setTimeout(() => setShowSplash(false), 2000);
+      }
     };
     init();
   }, []);
 
+  // --- Data Fetch (artık kendi endpoint'imizden) ---
   const fetchData = useCallback(async () => {
     if (!address) return;
     setLoading(true);
 
     try {
-      // A. NEYNAR
-      // Varsayılan değerler (Hata durumunda gösterilecek)
-      let farcasterData = { username: "Explorer", pfp: "", score: 0, fid: 0, since: "2024" };
-      
-      if (NEYNAR_API_KEY) {
-        try {
-            const neynarRes = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=&viewer_fid=3&addresses=${address}`, {
-                headers: { 'api_key': NEYNAR_API_KEY, 'accept': 'application/json' }
-            });
-            const neynarJson = await neynarRes.json();
-            if (neynarJson.users && neynarJson.users[0]) {
-                const u = neynarJson.users[0];
-                farcasterData = {
-                    username: u.username,
-                    pfp: u.pfp_url,
-                    score: u.score || 0.5,
-                    fid: u.fid,
-                    since: u.created_at ? new Date(u.created_at).getFullYear().toString() : "2024"
-                };
-            }
-        } catch (e) { console.log("Neynar Error (Skipping):", e); }
+      const res = await fetch(`/api/baseprint?address=${address}`);
+      if (!res.ok) {
+        console.error("BasePrint API error", await res.text());
+        setLoading(false);
+        return;
       }
-
-      // B. ETHERSCAN V2
-      if (ETHERSCAN_API_KEY) {
-        try {
-            const txUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
-            const txRes = await fetch(txUrl);
-            const txJson = await txRes.json();
-            
-            const balUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=balance&address=${address}&tag=latest&apikey=${ETHERSCAN_API_KEY}`;
-            const balRes = await fetch(balUrl);
-            const balJson = await balRes.json();
-
-            if (txJson.result && Array.isArray(txJson.result)) {
-                const txs = txJson.result;
-                const uniqueDates = Array.from(new Set(txs.map((tx: any) => new Date(parseInt(tx.timeStamp) * 1000).toDateString()))) as string[];
-                
-                const analysis = analyzeTransactions(txs);
-                const isVerified = txs.length > 5 && parseInt(balJson.result) > 0;
-
-                setStats({
-                    txCount: txs.length,
-                    daysActive: uniqueDates.length,
-                    longestStreak: calculateStreak(uniqueDates),
-                    bridge: analysis.bridge,
-                    defi: analysis.defi,
-                    deployed: analysis.deployed,
-                    walletAge: calculateWalletAgeDays(parseInt(txs[0]?.timeStamp || 0)),
-                    isVerified: isVerified
-                });
-            }
-        } catch (e) { console.log("Etherscan Error (Skipping):", e); }
-      }
-      setUserData(farcasterData);
-    } catch (error) { console.error("General Fetch Error:", error); } 
-    finally { setLoading(false); }
+      const json = await res.json();
+      setUserData(json.farcasterData);
+      setStats(json.stats);
+    } catch (err) {
+      console.error("General Fetch Error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [address]);
 
   useEffect(() => {
@@ -216,43 +149,55 @@ function BasePrintContent() {
   const handleMint = () => {
     if (!userData || !stats) return;
     const scoreInt = Math.floor((userData.score || 0) * 100);
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = new Date().toISOString().split("T")[0];
 
     writeContract({
-        address: CONTRACT_ADDRESS,
-        abi: [{
-                name: 'mintIdentity',
-                type: 'function',
-                stateMutability: 'payable',
-                inputs: [
-                    { name: '_username', type: 'string' },
-                    { name: '_score', type: 'uint256' },
-                    { name: '_txCount', type: 'uint256' },
-                    { name: '_daysActive', type: 'uint256' },
-                    { name: '_mintDate', type: 'string' }
-                ],
-                outputs: []
-            }],
-        functionName: 'mintIdentity',
-        args: [userData.username, BigInt(scoreInt), BigInt(stats.txCount), BigInt(stats.daysActive), dateStr],
-        value: parseEther('0.0002')
+      address: CONTRACT_ADDRESS as `0x${string}`,
+      abi: [
+        {
+          name: "mintIdentity",
+          type: "function",
+          stateMutability: "payable",
+          inputs: [
+            { name: "_username", type: "string" },
+            { name: "_score", type: "uint256" },
+            { name: "_txCount", type: "uint256" },
+            { name: "_daysActive", type: "uint256" },
+            { name: "_mintDate", type: "string" },
+          ],
+          outputs: [],
+        },
+      ],
+      functionName: "mintIdentity",
+      args: [
+        userData.username,
+        BigInt(scoreInt),
+        BigInt(stats.txCount),
+        BigInt(stats.daysActive),
+        dateStr,
+      ],
+      value: parseEther("0.0002"),
     });
   };
-  
-  // YENİ: Paylaşım Butonu İşlevi
+
   const handleShare = () => {
-      if (!userData || !stats) return;
-      const shareUrl = createFarcasterCastUrl(userData.username, '', stats.isVerified);
-      window.open(shareUrl, '_blank');
+    if (!userData || !stats) return;
+    const shareUrl = createFarcasterCastUrl(userData.username, stats.isVerified);
+    window.open(shareUrl, "_blank");
   };
 
   // --- RENDER ---
+
   if (showSplash) {
     return (
       <div className="fixed inset-0 bg-[#0052FF] flex flex-col items-center justify-center z-50 text-white">
-        <div className="animate-bounce mb-6"><AppLogo className="w-24 h-24" /></div>
+        <div className="animate-bounce mb-6">
+          <AppLogo className="w-24 h-24" />
+        </div>
         <h1 className="text-3xl font-black tracking-tighter">BasePrint</h1>
-        <p className="text-blue-200 text-xs mt-2 font-mono tracking-widest">IDENTITY LAYER LOADING...</p>
+        <p className="text-blue-200 text-xs mt-2 font-mono tracking-widest">
+          IDENTITY LAYER LOADING...
+        </p>
       </div>
     );
   }
@@ -260,176 +205,255 @@ function BasePrintContent() {
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-900 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100 relative">
-        
         {/* HEADER */}
         <div className="bg-white/80 backdrop-blur-md p-4 flex justify-between items-center absolute top-0 w-full z-20">
-            <div className="flex items-center gap-2">
-                <AppLogo className="w-6 h-6" />
-                <span className="font-bold text-slate-900 tracking-tight">BasePrint</span>
+          <div className="flex items-center gap-2">
+            <AppLogo className="w-6 h-6" />
+            <span className="font-bold text-slate-900 tracking-tight">
+              BasePrint
+            </span>
+          </div>
+          {isConnected && (
+            <div className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded-full text-gray-500">
+              {address?.slice(0, 6)}...{address?.slice(-4)}
             </div>
-            {isConnected && <div className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded-full text-gray-500">{address?.slice(0,6)}...{address?.slice(-4)}</div>}
+          )}
         </div>
 
         {!isConnected ? (
-            <div className="flex flex-col items-center justify-center h-[600px] bg-gradient-to-b from-blue-50 to-white">
-                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6">
-                    <FarcasterIcon className="w-12 h-12 text-[#0052FF]" />
-                </div>
-                <h2 className="text-2xl font-black text-slate-900 mb-2">Connect Identity</h2>
-                <p className="text-gray-500 text-sm text-center px-8 mb-8">Reveal your onchain reputation and Base activity.</p>
-                
-                <div className="w-full px-8">
-                    {/* Akıllı Cüzdan Bağlantısı */}
-                    <button 
-                        onClick={() => {
-                            // Farcaster içindeyse injected (Warpcast) kullanır
-                            // Değilse Coinbase Wallet (Smart Wallet) açar
-                            const preferredConnector = connectors.find(c => c.id === 'injected') || connectors[0];
-                            connect({ connector: preferredConnector });
-                        }} 
-                        className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
-                    >
-                         Connect Wallet
-                    </button>
-                </div>
+          <div className="flex flex-col items-center justify-center h-[600px] bg-gradient-to-b from-blue-50 to-white">
+            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6">
+              <FarcasterIcon className="w-12 h-12 text-[#0052FF]" />
             </div>
+            <h2 className="text-2xl font-black text-slate-900 mb-2">
+              Connect Identity
+            </h2>
+            <p className="text-gray-500 text-sm text-center px-8 mb-8">
+              Reveal your onchain reputation and Base activity.
+            </p>
+
+            <div className="w-full px-8">
+              <button
+                onClick={() => {
+                  const preferredConnector =
+                    connectors.find((c) => c.id === "injected") ||
+                    connectors[0];
+                  connect({ connector: preferredConnector });
+                }}
+                className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
+              >
+                Connect Wallet
+              </button>
+            </div>
+          </div>
         ) : (
-            <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
-                
-                {loading || !userData || !stats ? (
-                    <div className="flex flex-col items-center justify-center flex-1">
-                        <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p className="text-xs text-slate-400 font-mono">SCANNING BASE CHAIN...</p>
+          <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
+            {loading || !userData || !stats ? (
+              <div className="flex flex-col items-center justify-center flex-1">
+                <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-xs text-slate-400 font-mono">
+                  SCANNING BASE CHAIN...
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 animate-in slide-in-from-bottom-5 duration-500">
+                {/* GLASS CARD */}
+                <div className="relative w-full aspect-[1.7/1] rounded-2xl overflow-hidden shadow-2xl group border border-white/20">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF] via-[#0042cc] to-[#002980]"></div>
+                  <div className="absolute -right-10 -bottom-20 w-60 h-60 bg-cyan-400 opacity-20 rounded-full blur-3xl"></div>
+                  <div className="absolute right-[-20px] top-[-20px] opacity-10 rotate-12">
+                    <AppLogo className="w-40 h-40 text-white" />
+                  </div>
+
+                  <div className="absolute inset-0 p-5 text-white flex flex-col justify-between z-10">
+                    <div className="flex justify-between items-start">
+                      <AppLogo className="w-8 h-8 drop-shadow-sm" />
+                      {stats.isVerified && (
+                        <div className="flex items-center gap-1.5 bg-blue-500/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-blue-400">
+                          <svg
+                            className="w-3.5 h-3.5 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span className="text-[10px] font-bold uppercase tracking-wide">
+                            Verified
+                          </span>
+                        </div>
+                      )}
                     </div>
+
+                    <div className="flex items-center gap-4 mt-2">
+                      <img
+                        src={userData.pfp || "https://zora.co/assets/icon.png"}
+                        className="w-16 h-16 rounded-full border-2 border-white shadow-lg bg-slate-800"
+                        alt="pfp"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-blue-200 font-mono opacity-80 uppercase tracking-widest">
+                          FID: {userData.fid}
+                        </span>
+                        <span className="text-2xl font-black tracking-tight leading-tight">
+                          @{userData.username}
+                        </span>
+                        {ensName && (
+                          <span className="text-xs text-white font-semibold bg-blue-600/50 px-2 py-0.5 rounded-md w-fit mt-1">
+                            {ensName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-auto">
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-[10px] text-blue-200 font-bold uppercase">
+                          Neynar Score
+                        </span>
+                        <span className="text-xl font-black leading-none">
+                          {userData.score.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-green-300 to-green-500"
+                          style={{
+                            width: `${userData.score * 100}%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* STATS GRID */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-sm">
+                  <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                    <div className="p-3 text-center">
+                      <div className="font-black text-slate-800 text-lg">
+                        {stats.daysActive}
+                      </div>
+                      <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                        Active Days
+                      </div>
+                    </div>
+                    <div className="p-3 text-center">
+                      <div className="font-black text-slate-800 text-lg">
+                        {stats.walletAge}{" "}
+                        <span className="text-xs text-gray-400 font-normal">
+                          Days
+                        </span>
+                      </div>
+                      <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                        Wallet Age
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                    <div className="p-3 text-center">
+                      <div className="font-black text-slate-800 text-lg">
+                        {stats.txCount}
+                      </div>
+                      <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                        Total TXs
+                      </div>
+                    </div>
+                    <div className="p-3 text-center">
+                      <div className="font-black text-slate-800 text-lg">
+                        {stats.bridge}
+                      </div>
+                      <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                        Bridge TXs
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                    <div className="p-3 text-center">
+                      <div className="font-black text-slate-800 text-lg">
+                        {stats.defi}
+                      </div>
+                      <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-tight">
+                        Lend/Borrow/Stake
+                      </div>
+                    </div>
+                    <div className="p-3 text-center">
+                      <div className="font-black text-slate-800 text-lg">
+                        {stats.deployed}
+                      </div>
+                      <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                        Smart Contracts
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-blue-50/50 flex justify-between items-center px-6">
+                    <span className="text-[10px] font-bold text-[#0052FF] uppercase tracking-wider">
+                      Best Streak
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-base">🔥</span>
+                      <span className="font-black text-[#0052FF] text-lg">
+                        {stats.longestStreak} Days
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* MINT & SHARE BUTTONS */}
+                {isSuccess ? (
+                  <button
+                    onClick={handleShare}
+                    className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl bg-purple-600 hover:bg-purple-700 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm5 7h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" />
+                    </svg>
+                    SHARE ON WARPCAST
+                  </button>
                 ) : (
-                    <div className="space-y-4 animate-in slide-in-from-bottom-5 duration-500">
-                        
-                        {/* --- GLASS CARD --- */}
-                        <div className="relative w-full aspect-[1.7/1] rounded-2xl overflow-hidden shadow-2xl group border border-white/20">
-                            <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF] via-[#0042cc] to-[#002980]"></div>
-                            <div className="absolute -right-10 -bottom-20 w-60 h-60 bg-cyan-400 opacity-20 rounded-full blur-3xl"></div>
-                            <div className="absolute right-[-20px] top-[-20px] opacity-10 rotate-12"><AppLogo className="w-40 h-40 text-white" /></div>
-
-                            <div className="absolute inset-0 p-5 text-white flex flex-col justify-between z-10">
-                                <div className="flex justify-between items-start">
-                                    <AppLogo className="w-8 h-8 drop-shadow-sm" />
-                                    {stats.isVerified && (
-                                        <div className="flex items-center gap-1.5 bg-blue-500/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-blue-400">
-                                            <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                                            <span className="text-[10px] font-bold uppercase tracking-wide">Verified</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-4 mt-2">
-                                    <img src={userData.pfp || "https://zora.co/assets/icon.png"} className="w-16 h-16 rounded-full border-2 border-white shadow-lg bg-slate-800" alt="pfp" />
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] text-blue-200 font-mono opacity-80 uppercase tracking-widest">FID: {userData.fid}</span>
-                                        <span className="text-2xl font-black tracking-tight leading-tight">@{userData.username}</span>
-                                        {ensName && <span className="text-xs text-white font-semibold bg-blue-600/50 px-2 py-0.5 rounded-md w-fit mt-1">{ensName}</span>}
-                                    </div>
-                                </div>
-
-                                <div className="mt-auto">
-                                    <div className="flex justify-between items-end mb-1">
-                                        <span className="text-[10px] text-blue-200 font-bold uppercase">Neynar Score</span>
-                                        <span className="text-xl font-black leading-none">{userData.score.toFixed(2)}</span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
-                                        <div className="h-full bg-gradient-to-r from-green-300 to-green-500" style={{ width: `${userData.score * 100}%` }}></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* --- STATS GRID --- */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-sm">
-                            <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
-                                <div className="p-3 text-center">
-                                    <div className="font-black text-slate-800 text-lg">{stats.daysActive}</div>
-                                    <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Active Days</div>
-                                </div>
-                                <div className="p-3 text-center">
-                                    <div className="font-black text-slate-800 text-lg">{stats.walletAge} <span className="text-xs text-gray-400 font-normal">Days</span></div>
-                                    <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Wallet Age</div>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
-                                <div className="p-3 text-center">
-                                    <div className="font-black text-slate-800 text-lg">{stats.txCount}</div>
-                                    <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Total TXs</div>
-                                </div>
-                                <div className="p-3 text-center">
-                                    <div className="font-black text-slate-800 text-lg">{stats.bridge}</div>
-                                    <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Bridge TXs</div>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
-                                <div className="p-3 text-center">
-                                    <div className="font-black text-slate-800 text-lg">{stats.defi}</div>
-                                    <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-tight">Lend/Borrow/Stake</div>
-                                </div>
-                                <div className="p-3 text-center">
-                                    <div className="font-black text-slate-800 text-lg">{stats.deployed}</div>
-                                    <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Smart Contracts</div>
-                                </div>
-                            </div>
-                            <div className="p-3 bg-blue-50/50 flex justify-between items-center px-6">
-                                <span className="text-[10px] font-bold text-[#0052FF] uppercase tracking-wider">Best Streak</span>
-                                <div className="flex items-center gap-1">
-                                    <span className="text-base">🔥</span>
-                                    <span className="font-black text-[#0052FF] text-lg">{stats.longestStreak} Days</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* --- MINT & SHARE BUTTONS --- */}
-                        {isSuccess ? (
-                             <button
-                                onClick={handleShare}
-                                className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl bg-purple-600 hover:bg-purple-700 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm5 7h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>
-                                </svg>
-                                SHARE ON WARPCAST
-                            </button>
-                        ) : (
-                            <button
-                                disabled={isPending}
-                                onClick={handleMint}
-                                className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
-                                    ${'bg-[#0052FF] hover:bg-blue-700'}`}
-                            >
-                                {isPending ? (
-                                    <span className="animate-pulse">Processing...</span>
-                                ) : (
-                                    <>
-                                        <span>MINT BASEPRINT</span>
-                                        <span className="bg-white/20 text-xs px-2 py-1 rounded font-medium">
-                                            0.0002 ETH
-                                        </span>
-                                    </>
-                                )}
-                            </button>
-                        )}
-                        
-                        {mintError && (
-                            <div className="bg-red-50 text-red-500 text-[10px] text-center p-2 rounded-lg border border-red-100">
-                                {(mintError as BaseError).shortMessage || mintError.message}
-                            </div>
-                        )}
-
-                    </div>
+                  <button
+                    disabled={isPending}
+                    onClick={handleMint}
+                    className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700`}
+                  >
+                    {isPending ? (
+                      <span className="animate-pulse">Processing...</span>
+                    ) : (
+                      <>
+                        <span>MINT BASEPRINT</span>
+                        <span className="bg-white/20 text-xs px-2 py-1 rounded font-medium">
+                          0.0002 ETH
+                        </span>
+                      </>
+                    )}
+                  </button>
                 )}
-            </div>
+
+                {mintError && (
+                  <div className="bg-red-50 text-red-500 text-[10px] text-center p-2 rounded-lg border border-red-100">
+                    {(mintError as BaseError).shortMessage ||
+                      (mintError as any).message}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-// 5. MAIN WRAPPER
+// WRAPPER
 export default function Page() {
   return (
     <WagmiProvider config={config}>
