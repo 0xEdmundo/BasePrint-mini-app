@@ -14,7 +14,7 @@ import { base } from "wagmi/chains";
 import { injected, coinbaseWallet } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { parseEther } from "viem";
-import sdk from "@farcaster/frame-sdk";
+import { sdk } from "@farcaster/miniapp-sdk"; // 🔵 YENİ SDK
 
 // CONFIG ------------------
 
@@ -63,7 +63,7 @@ const AppLogo = ({ className }: { className?: string }) => (
 
 const FarcasterIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-    <path d="M18.24.24H5.76A5.76 5.76 0 0 0 0 6v12a5.76 5.76 0 0 0 5.76 5.76h12.48A5.76 5.76 0 0 0 24 18V6A5.76 5.76 0 0 0 18.24.24m.816 17.166v.504a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H13.536a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h3.806v-.546h-5.47v.546h3.806a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H10.464a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h3.536v-1.25a6.007 6.007 0 0 1-3.16-1.042V17.5a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H6.312a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h2.062v-.546h-2.937v.546h2.062a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H4.944a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h2.188c-.62-.43-1.134-.975-1.503-1.587a4.2 4.2 0 0 1-.397-1.164c-.033-.19-.047-.384-.047-.578 0-.84.225-1.636.623-2.333l.03-.047.16-.017.994-1.043.48.504-.993 1.043a4.05 4.05 0 0 0-.5 1.892c0 .248.03.492.083.729.123.542.387 1.037.753 1.45.67.755 1.63 1.229 2.705 1.229a3.67 3.67 0 0 0 3.12-1.74 3.65 3.65 0 0 0 .385-1.668c0-.62-.158-1.206-.437-1.724l-.017-.03-.03-.03-1.89-1.984.48-.504 1.89 1.983c.376.697.589 1.493.589 2.333 0 .194-.014.388-.047.578a4.2 4.2 0 0 1-.397 1.164 4.2 4.2 0 0 1-1.503 1.587h2.188z" />
+    <path d="M18.24.24H5.76A5.76 5.76 0 0 0 0 6v12a5.76 5.76 0 0 0 5.76 5.76h12.48A5.76 5.76 0 0 0 24 18V6A5.76 5.76 0 0 0 18.24.24m.816 17.166v.504a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H13.536a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h3.806v-.546h-5.47v.546h3.806a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H10.464a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h3.536v-1.25a6.007 6.007 0 0 1-3.16-1.042V17.5a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H6.312a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h2.062v-.546h-2.937v.546h2.062a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H4.944a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h2.188c-.62-.43-1.134-.975-1.503-1.587a4.2 4.2 0 0 1-.397-1.164c-.033-.19-.047-.384-.047-.578 0-.84.225-1.636.623-2.333l.03-.047.016-.017.994-1.043.48.504-.993 1.043a4.05 4.05 0 0 0-.5 1.892c0 .248.03.492.083.729.123.542.387 1.037.753 1.45.67.755 1.63 1.229 2.705 1.229a3.67 3.67 0 0 0 3.12-1.74 3.65 3.65 0 0 0 .385-1.668c0-.62-.158-1.206-.437-1.724l-.017-.03-.03-.03-1.89-1.984.48-.504 1.89 1.983c.376.697.589 1.493.589 2.333 0 .194-.014.388-.047.578a4.2 4.2 0 0 1-.397 1.164 4.2 4.2 0 0 1-1.503 1.587h2.188z" />
   </svg>
 );
 
@@ -107,27 +107,25 @@ function BasePrintContent() {
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
 
-  // SPLASH SCREEN
+  // 🔵 SPLASH + MINI APP READY -----------------------
   useEffect(() => {
     let cancelled = false;
 
     const init = async () => {
       try {
-        // Frame içindeysek sdk.ready() dene,
-        // localhost gibi normal tarayıcıdaysak atla.
-        const isInFrame =
-          typeof window !== "undefined" && window.parent !== window;
+        // Mini app içinde miyiz?
+        const inMiniApp = await sdk.isInMiniApp().catch(() => false);
 
-        if (isInFrame) {
+        if (inMiniApp) {
+          // Base/Farcaster mini app splash ekranını kapat
           await sdk.actions.ready();
         }
       } catch (err) {
-        console.error("Frame SDK ready() failed:", err);
+        console.error("MiniApp sdk init error:", err);
       } finally {
         if (!cancelled) {
-          setTimeout(() => {
-            if (!cancelled) setShowSplash(false);
-          }, 1500);
+          // Bizim kendi splash'ı da kapat
+          setShowSplash(false);
         }
       }
     };
@@ -154,6 +152,8 @@ function BasePrintContent() {
       }
 
       const json = await res.json();
+      console.log("BasePrint API response:", json); // debug için
+
       setUserData(json.farcasterData);
       setStats(json.stats);
     } catch (e) {
@@ -319,7 +319,10 @@ function BasePrintContent() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-sm mt-4">
                   <div className="grid grid-cols-2 divide-x divide-gray-100 border-b">
                     <Item label="Active Days" value={stats.daysActive} />
-                    <Item label="Wallet Age" value={`${stats.walletAge} Days`} />
+                    <Item
+                      label="Wallet Age"
+                      value={`${stats.walletAge} Days`}
+                    />
                   </div>
                   <div className="grid grid-cols-2 divide-x divide-gray-100 border-b">
                     <Item label="Total TXs" value={stats.txCount} />
