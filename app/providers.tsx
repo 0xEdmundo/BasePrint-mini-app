@@ -1,9 +1,14 @@
-'use client';
+// app/providers.tsx
+"use client";
 
-import type { ReactNode } from 'react';
+import React from "react";
 
-export function Providers({ children }: { children: ReactNode }) {
-  // Şimdilik ekstra provider yok, sadece çocukları döndürüyoruz.
-  // Wagmi + QueryClient zaten app/page.tsx içinde wrap ediliyor.
+export default function Providers({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // Şimdilik ekstra provider yok, sadece children dönüyoruz.
+  // İleride React Query devtools vs. eklemek istersen buraya koyarız.
   return <>{children}</>;
 }
