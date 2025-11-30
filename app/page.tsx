@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   useAccount,
   useConnect,
+  useDisconnect,
   useWriteContract,
   useEnsName,
   type BaseError,
@@ -14,8 +15,6 @@ import { injected, coinbaseWallet } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { parseEther } from "viem";
 import { sdk } from "@farcaster/miniapp-sdk";
-
-// CONFIG ------------------
 
 const CONTRACT_ADDRESS =
   "0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2" as `0x${string}`;
@@ -95,21 +94,26 @@ ${BASEPRINT_MINIAPP_URL}
 
 function BasePrintContent() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { connect, connectors, error: connectError } = useConnect();
   const { writeContract, isPending, isSuccess, error: mintError } =
     useWriteContract();
+  const { disconnect } = useDisconnect();
 
-  useEnsName({ address, chainId: base.id });
+  useEnsName({ address, chainId: base.id }); // Şimdilik sadece trigger için
 
   const [loading, setLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
-  const [profileError, setProfileError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<
+    null | "NO_PROFILE" | "GENERIC"
+  >(null);
 
-  // 🔵 SPLASH + MINI APP READY -----------------------
+  // SPLASH + MINIAPP READY (EN AZ 3 SANİYE) -----------------------
   useEffect(() => {
     let cancelled = false;
+    const MIN_SPLASH_MS = 3000;
+    const start = Date.now();
 
     const init = async () => {
       try {
@@ -120,11 +124,23 @@ function BasePrintContent() {
       } catch (err) {
         console.error("MiniApp sdk init error:", err);
       } finally {
-        if (!cancelled) setShowSplash(false);
+        const elapsed = Date.now() - start;
+        const remaining = MIN_SPLASH_MS - elapsed;
+
+        if (!cancelled) {
+          if (remaining > 0) {
+            setTimeout(() => {
+              if (!cancelled) setShowSplash(false);
+            }, remaining);
+          } else {
+            setShowSplash(false);
+          }
+        }
       }
     };
 
     init();
+
     return () => {
       cancelled = true;
     };
@@ -132,30 +148,24 @@ function BasePrintContent() {
 
   // FETCH DATA -----------------------
   const fetchData = useCallback(async () => {
-    if (!address) {
-      return;
-    }
-
+    if (!address) return;
     setLoading(true);
-    setProfileError(null);
+    setFetchError(null);
 
     try {
       const res = await fetch(`/api/baseprint?address=${address}`);
 
-      if (!res.ok) {
-        if (res.status === 404) {
-          setUserData(null);
-          setStats(null);
-          setProfileError(
-            "No Farcaster profile found for this address. Make sure your wallet is linked."
-          );
-          return;
-        }
-
-        console.error("BasePrint API error:", res.status);
+      if (res.status === 404) {
         setUserData(null);
         setStats(null);
-        setProfileError("Unexpected server error. Please try again.");
+        setFetchError("NO_PROFILE");
+        return;
+      }
+
+      if (!res.ok) {
+        setUserData(null);
+        setStats(null);
+        setFetchError("GENERIC");
         return;
       }
 
@@ -164,18 +174,21 @@ function BasePrintContent() {
 
       setUserData(json.farcasterData);
       setStats(json.stats);
+      setFetchError(null);
     } catch (e) {
-      console.error("BasePrint API network error:", e);
+      console.error(e);
+      setFetchError("GENERIC");
       setUserData(null);
       setStats(null);
-      setProfileError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   }, [address]);
 
   useEffect(() => {
-    if (isConnected) fetchData();
+    if (isConnected) {
+      fetchData();
+    }
   }, [isConnected, fetchData]);
 
   // MINT -----------------------
@@ -225,7 +238,6 @@ function BasePrintContent() {
 
   // RENDER -----------------------
 
-  // 🔵 Eski mavi logolu splash
   if (showSplash) {
     return (
       <div className="fixed inset-0 bg-[#0052FF] flex flex-col items-center justify-center z-50 text-white">
@@ -269,167 +281,52 @@ function BasePrintContent() {
                 Connect Wallet
               </button>
             </div>
+
+            {connectError && (
+              <p className="mt-3 text-xs text-red-500 px-8 text-center">
+                {(connectError as BaseError).shortMessage ||
+                  (connectError as any).message}
+              </p>
+            )}
           </div>
         ) : (
           // --------------------- CONNECTED ---------------------
           <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
             {loading ? (
-              // Sadece loading TRUE iken spinner
               <div className="flex flex-col items-center justify-center flex-1">
-                <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4" />
                 <p className="text-xs text-slate-400 font-mono">
                   SCANNING BASE CHAIN...
                 </p>
               </div>
-            ) : profileError ? (
-              // API hata / profil yok
-              <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
+            ) : fetchError === "NO_PROFILE" ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-center px-8">
                 <p className="text-red-500 font-semibold mb-2">
-                  {profileError}
+                  No Farcaster profile found for this address.
+                </p>
+                <p className="text-xs text-slate-500 mb-4">
+                  Make sure this wallet is linked to a Farcaster profile and try
+                  again.
                 </p>
                 <button
-                  onClick={fetchData}
-                  className="mt-2 bg-[#0052FF] text-white px-6 py-3 rounded-xl font-bold text-sm"
+                  onClick={() => fetchData()}
+                  className="mt-2 bg-[#0052FF] text-white px-6 py-3 rounded-xl font-semibold text-sm shadow-md"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : fetchError === "GENERIC" ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-center px-8">
+                <p className="text-red-500 font-semibold mb-2">
+                  Something went wrong while loading your data.
+                </p>
+                <button
+                  onClick={() => fetchData()}
+                  className="mt-2 bg-[#0052FF] text-white px-6 py-3 rounded-xl font-semibold text-sm shadow-md"
                 >
                   Retry
                 </button>
               </div>
             ) : !userData || !stats ? (
-              // Güvenlik için fallback (hiç veri yok ama loading de değilse)
-              <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
-                <p className="text-slate-500 text-sm mb-2">
-                  No data received yet.
-                </p>
-                <button
-                  onClick={fetchData}
-                  className="mt-2 bg-[#0052FF] text-white px-6 py-3 rounded-xl font-bold text-sm"
-                >
-                  Refresh
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* CARD ------------------------- */}
-                <div className="relative w-full aspect-[1.7/1] rounded-2xl overflow-hidden shadow-2xl group border border-white/20">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF] via-[#0042cc] to-[#002980]"></div>
-                  <div className="absolute inset-0 p-5 text-white flex flex-col justify-between z-10">
-                    {/* TOP */}
-                    <div className="flex justify-between items-start">
-                      <AppLogo className="w-8 h-8 drop-shadow-sm" />
-                      {stats.isVerified && (
-                        <div className="flex items-center gap-1 bg-blue-600/80 px-3 py-1 rounded-full backdrop-blur border border-blue-400">
-                          <span className="text-xs">Verified</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* USER INFO */}
-                    <div className="flex items-center gap-4 mt-2">
-                      <img
-                        src={userData.pfp || "https://zora.co/assets/icon.png"}
-                        className="w-16 h-16 rounded-full border-2 border-white shadow-lg bg-slate-800"
-                      />
-                      <div>
-                        <div className="text-[10px] text-blue-200 font-mono uppercase">
-                          FID: {userData.fid}
-                        </div>
-                        <div className="text-2xl font-black">
-                          @{userData.username}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SCORE */}
-                    <div className="mt-3">
-                      <div className="flex justify-between text-blue-200 text-[10px] uppercase">
-                        <span>Neynar Score</span>
-                        <span>{userData.score.toFixed(2)}</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-black/20 rounded mt-1">
-                        <div
-                          className="h-full bg-gradient-to-r from-green-300 to-green-500"
-                          style={{ width: `${userData.score * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* STATS GRID --------------------- */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-sm mt-4">
-                  <div className="grid grid-cols-2 divide-x divide-gray-100 border-b">
-                    <Item label="Active Days" value={stats.daysActive} />
-                    <Item
-                      label="Wallet Age"
-                      value={`${stats.walletAge} Days`}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-gray-100 border-b">
-                    <Item label="Total TXs" value={stats.txCount} />
-                    <Item label="Bridge TXs" value={stats.bridge} />
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-gray-100 border-b">
-                    <Item label="Lend/Borrow/Stake" value={stats.defi} />
-                    <Item label="Smart Contracts" value={stats.deployed} />
-                  </div>
-                  <div className="p-3 bg-blue-50 text-center font-black text-[#0052FF]">
-                    🔥 Best Streak: {stats.longestStreak} Days
-                  </div>
-                </div>
-
-                {/* MINT ------------------------ */}
-                {!isSuccess ? (
-                  <button
-                    onClick={handleMint}
-                    disabled={isPending}
-                    className="w-full mt-4 bg-[#0052FF] text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-blue-700"
-                  >
-                    {isPending
-                      ? "Processing..."
-                      : "MINT BASEPRINT • 0.0002 ETH"}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleShare}
-                    className="w-full mt-4 bg-purple-600 text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-purple-700"
-                  >
-                    SHARE ON WARPCAST
-                  </button>
-                )}
-
-                {mintError && (
-                  <div className="text-red-500 text-xs text-center mt-2">
-                    {(mintError as BaseError).shortMessage ||
-                      (mintError as any).message}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Item({ label, value }: { label: string; value: any }) {
-  return (
-    <div className="p-3 text-center">
-      <div className="font-black text-slate-800 text-lg">{value}</div>
-      <div className="text-[9px] text-gray-400 font-bold uppercase">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-// WRAPPER
-export default function Page() {
-  return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <BasePrintContent />
-      </QueryClientProvider>
-    </WagmiProvider>
-  );
-}
+              <div className="flex flex-col items-center justify-center flex-1">
+                <
