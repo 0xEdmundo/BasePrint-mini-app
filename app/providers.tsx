@@ -7,5 +7,6 @@ export default function Providers({
 }: {
   children: React.ReactNode;
 }) {
+  // Şimdilik ekstra global provider yok, ileride eklemek istersen buraya koyarız
   return <>{children}</>;
 }
