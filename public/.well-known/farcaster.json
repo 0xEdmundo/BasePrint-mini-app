@@ -1,0 +1,18 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjEyMzQ1LCJ0eXBlIjoiY3VzdG9keSIsImtleSI6IjB4...EXAMPLE_HEADER..."},
+    "payload": "eyJkb21haW4iOiJiYXNlcHJpbnQudmVyY2VsLmFwcCJ9",
+    "signature": "0x...EXAMPLE_SIGNATURE..."
+  },
+  "frame": {
+    "version": "1",
+    "name": "BasePrint",
+    "iconUrl": "https://baseprint.vercel.app/icon.png",
+    "homeUrl": "https://baseprint.vercel.app",
+    "imageUrl": "https://baseprint.vercel.app/opengraph-image.png",
+    "buttonTitle": "Mint Your ID",
+    "splashImageUrl": "https://baseprint.vercel.app/splash.png",
+    "splashBackgroundColor": "#0052FF",
+    "webhookUrl": "https://baseprint.vercel.app/api/webhook"
+  }
+}
