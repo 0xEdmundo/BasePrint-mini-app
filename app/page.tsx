@@ -63,7 +63,7 @@ const AppLogo = ({ className }: { className?: string }) => (
 
 const FarcasterIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-    <path d="M18.24.24H5.76A5.76 5.76 0 0 0 0 6v12a5.76 5.76 0 0 0 5.76 5.76h12.48A5.76 5.76 0 0 0 24 18V6A5.76 5.76 0 0 0 18.24.24m.816 17.166v.504a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H13.536a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h3.806v-.546h-5.47v.546h3.806a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H10.464a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h3.536v-1.25a6.007 6.007 0 0 1-3.16-1.042V17.5a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H6.312a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h2.062v-.546h-2.937v.546h2.062a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H4.944a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h2.188c-.62-.43-1.134-.975-1.503-1.587a4.2 4.2 0 0 1-.397-1.164c-.033-.19-.047-.384-.047-.578 0-.84.225-1.636.623-2.333l.03-.047.016-.017.994-1.043.48.504-.993 1.043a4.05 4.05 0 0 0-.5 1.892c0 .248.03.492.083.729.123.542.387 1.037.753 1.45.67.755 1.63 1.229 2.705 1.229a3.67 3.67 0 0 0 3.12-1.74 3.65 3.65 0 0 0 .385-1.668c0-.62-.158-1.206-.437-1.724l-.017-.03-.03-.03-1.89-1.984.48-.504 1.89 1.983c.376.697.589 1.493.589 2.333 0 .194-.014.388-.047.578a4.2 4.2 0 0 1-.397 1.164 4.2 4.2 0 0 1-1.503 1.587h2.188z" />
+    <path d="M18.24.24H5.76A5.76 5.76 0 0 0 0 6v12a5.76 5.76 0 0 0 5.76 5.76h12.48A5.76 5.76 0 0 0 24 18V6A5.76 5.76 0 0 0 18.24.24m.816 17.166v.504a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H13.536a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h3.806v-.546h-5.47v.546h3.806a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H10.464a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h3.536v-1.25a6.007 6.007 0 0 1-3.16-1.042V17.5a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H6.312a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h2.062v-.546h-2.937v.546h2.062a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H4.944a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h2.188c-.62-.43-1.134-.975-1.503-1.587a4.2 4.2 0 0 1-.397-1.164c-.033-.19-.047-.384-.047-.578 0-.84.225-1.636.623-2.333l.03-.047.16-.017.994-1.043.48.504-.993 1.043a4.05 4.05 0 0 0-.5 1.892c0 .248.03.492.083.729.123.542.387 1.037.753 1.45.67.755 1.63 1.229 2.705 1.229a3.67 3.67 0 0 0 3.12-1.74 3.65 3.65 0 0 0 .385-1.668c0-.62-.158-1.206-.437-1.724l-.017-.03-.03-.03-1.89-1.984.48-.504 1.89 1.983c.376.697.589 1.493.589 2.333 0 .194-.014.388-.047.578a4.2 4.2 0 0 1-.397 1.164 4.2 4.2 0 0 1-1.503 1.587h2.188z" />
   </svg>
 );
 
@@ -109,14 +109,34 @@ function BasePrintContent() {
 
   // SPLASH SCREEN
   useEffect(() => {
+    let cancelled = false;
+
     const init = async () => {
       try {
-        await sdk.actions.ready();
+        // Frame içindeysek sdk.ready() dene,
+        // localhost gibi normal tarayıcıdaysak atla.
+        const isInFrame =
+          typeof window !== "undefined" && window.parent !== window;
+
+        if (isInFrame) {
+          await sdk.actions.ready();
+        }
+      } catch (err) {
+        console.error("Frame SDK ready() failed:", err);
       } finally {
-        setTimeout(() => setShowSplash(false), 1500);
+        if (!cancelled) {
+          setTimeout(() => {
+            if (!cancelled) setShowSplash(false);
+          }, 1500);
+        }
       }
     };
+
     init();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // FETCH DATA -----------------------
@@ -253,7 +273,6 @@ function BasePrintContent() {
                 <div className="relative w-full aspect-[1.7/1] rounded-2xl overflow-hidden shadow-2xl group border border-white/20">
                   <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF] via-[#0042cc] to-[#002980]"></div>
                   <div className="absolute inset-0 p-5 text-white flex flex-col justify-between z-10">
-
                     {/* TOP */}
                     <div className="flex justify-between items-start">
                       <AppLogo className="w-8 h-8 drop-shadow-sm" />
@@ -274,7 +293,9 @@ function BasePrintContent() {
                         <div className="text-[10px] text-blue-200 font-mono uppercase">
                           FID: {userData.fid}
                         </div>
-                        <div className="text-2xl font-black">@{userData.username}</div>
+                        <div className="text-2xl font-black">
+                          @{userData.username}
+                        </div>
                       </div>
                     </div>
 
@@ -320,7 +341,9 @@ function BasePrintContent() {
                     disabled={isPending}
                     className="w-full mt-4 bg-[#0052FF] text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-blue-700"
                   >
-                    {isPending ? "Processing..." : "MINT BASEPRINT • 0.0002 ETH"}
+                    {isPending
+                      ? "Processing..."
+                      : "MINT BASEPRINT • 0.0002 ETH"}
                   </button>
                 ) : (
                   <button
