@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import {
   useAccount,
   useConnect,
-  useDisconnect,
   useWriteContract,
   useEnsName,
   type BaseError,
@@ -96,40 +95,36 @@ ${BASEPRINT_MINIAPP_URL}
 
 function BasePrintContent() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors, error: connectError } = useConnect();
+  const { connect, connectors } = useConnect();
   const { writeContract, isPending, isSuccess, error: mintError } =
     useWriteContract();
 
-  const { data: ensName } = useEnsName({ address, chainId: base.id });
+  useEnsName({ address, chainId: base.id }); // şimdilik sadece resolve, UI'da kullanmıyoruz
 
   const [loading, setLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
-  // SPLASH + MINI APP READY -----------------------
+  // 🔵 SPLASH + MINI APP READY -----------------------
   useEffect(() => {
     let cancelled = false;
 
     const init = async () => {
       try {
         const inMiniApp = await sdk.isInMiniApp().catch(() => false);
-
         if (inMiniApp) {
           await sdk.actions.ready();
         }
       } catch (err) {
         console.error("MiniApp sdk init error:", err);
       } finally {
-        if (!cancelled) {
-          setShowSplash(false);
-        }
+        if (!cancelled) setShowSplash(false);
       }
     };
 
     init();
-
     return () => {
       cancelled = true;
     };
@@ -139,48 +134,38 @@ function BasePrintContent() {
   const fetchData = useCallback(async () => {
     if (!address) return;
     setLoading(true);
-    setApiError(null);
+    setProfileError(null);
 
     try {
       const res = await fetch(`/api/baseprint?address=${address}`);
-      let json: any = null;
 
-      try {
-        json = await res.json();
-      } catch {
-        // body yoksa
-      }
+      if (!res.ok) {
+        if (res.status === 404) {
+          setUserData(null);
+          setStats(null);
+          setProfileError(
+            "No Farcaster profile found for this address. Make sure your wallet is linked."
+          );
+          return;
+        }
 
-      console.log("BasePrint API response:", json);
-
-      if (!res.ok || !json) {
+        console.error("BasePrint API error:", res.status);
+        setProfileError("Unexpected server error. Please try again.");
         setUserData(null);
         setStats(null);
-        setApiError("Failed to fetch BasePrint data.");
         return;
       }
 
-      if (json.error) {
-        setUserData(null);
-        setStats(json.stats ?? null);
-        setApiError(json.error);
-        return;
-      }
-
-      if (!json.farcasterData || !json.stats) {
-        setUserData(null);
-        setStats(json.stats ?? null);
-        setApiError("No BasePrint data found for this address.");
-        return;
-      }
+      const json = await res.json();
+      console.log("BasePrint API response:", json);
 
       setUserData(json.farcasterData);
       setStats(json.stats);
     } catch (e) {
-      console.error(e);
+      console.error("BasePrint API network error:", e);
+      setProfileError("Network error. Please try again.");
       setUserData(null);
       setStats(null);
-      setApiError("Network error while fetching BasePrint data.");
     } finally {
       setLoading(false);
     }
@@ -284,39 +269,23 @@ function BasePrintContent() {
         ) : (
           // --------------------- CONNECTED ---------------------
           <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
-            {loading ? (
+            {loading || (!userData && !profileError) || !stats ? (
               <div className="flex flex-col items-center justify-center flex-1">
                 <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-xs text-slate-400 font-mono">
                   SCANNING BASE CHAIN...
                 </p>
               </div>
-            ) : apiError ? (
-              <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
-                <p className="text-sm text-red-500 font-medium mb-2">
-                  {apiError}
-                </p>
-                <p className="text-xs text-slate-500 mb-4">
-                  Make sure this wallet is linked to a Farcaster profile and try
-                  again.
+            ) : profileError ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
+                <p className="text-red-500 font-semibold mb-2">
+                  {profileError}
                 </p>
                 <button
                   onClick={fetchData}
-                  className="px-4 py-2 rounded-lg bg-[#0052FF] text-white text-xs font-bold"
+                  className="mt-2 bg-[#0052FF] text-white px-6 py-3 rounded-xl font-bold text-sm"
                 >
                   Retry
-                </button>
-              </div>
-            ) : !userData || !stats ? (
-              <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
-                <p className="text-sm text-slate-500 mb-4">
-                  No BasePrint data found for this address.
-                </p>
-                <button
-                  onClick={fetchData}
-                  className="px-4 py-2 rounded-lg bg-[#0052FF] text-white text-xs font-bold"
-                >
-                  Refresh
                 </button>
               </div>
             ) : (
