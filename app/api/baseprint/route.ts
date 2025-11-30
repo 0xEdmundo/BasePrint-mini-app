@@ -1,64 +1,21 @@
 // app/api/baseprint/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY!;
-const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY!;
+const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY; // Base için de buradan gidiyoruz
 
-// basit helper
-function daysBetween(a: Date, b: Date) {
-  const ms = Math.abs(b.getTime() - a.getTime());
-  return Math.floor(ms / (1000 * 60 * 60 * 24));
-}
+const ETHERSCAN_BASE_URL = "https://api.etherscan.io/v2/api";
+const BASE_CHAIN_ID = "8453"; // Base mainnet
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const address = searchParams.get("address");
+type EtherscanTx = {
+  timeStamp: string;
+  contractAddress?: string;
+  functionName?: string;
+};
 
-  if (!address) {
-    return NextResponse.json(
-      { error: "Missing address parameter" },
-      { status: 400 }
-    );
-  }
-
-  try {
-    // -------- 1) NEYNAR: wallet -> farcaster user --------
-    let farcasterData: any = null;
-
-    try {
-      const neynarRes = await fetch(
-        `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses[]=${address}`,
-        {
-          headers: {
-            "X-API-KEY": NEYNAR_API_KEY,
-            accept: "application/json",
-          },
-          cache: "no-store",
-        }
-      );
-
-      if (!neynarRes.ok) {
-        console.error("Neynar error status:", neynarRes.status);
-      } else {
-        const neynarJson = await neynarRes.json();
-        const user = neynarJson?.users?.[0];
-
-        if (user) {
-          farcasterData = {
-            fid: user.fid,
-            username: user.username,
-            pfp: user.pfp_url,
-            score: user.neynar_score ?? 0,
-            isVerified: !!user.power_badge,
-          };
-        }
-      }
-    } catch (err) {
-      console.error("Neynar fetch failed:", err);
-    }
-
-    // -------- 2) BASESCAN: tx list & stats --------
-    let stats: any = {
+function computeStats(txs: EtherscanTx[]) {
+  if (!txs || txs.length === 0) {
+    return {
       txCount: 0,
       daysActive: 0,
       walletAge: 0,
@@ -66,71 +23,227 @@ export async function GET(request: NextRequest) {
       defi: 0,
       deployed: 0,
       longestStreak: 0,
-      isVerified: farcasterData?.isVerified ?? false,
     };
+  }
 
-    try {
-      const baseRes = await fetch(
-        `https://api.basescan.org/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${BASESCAN_API_KEY}`,
-        { cache: "no-store" }
+  // timeStamp -> Date
+  const dates = txs
+    .map((tx) => new Date(parseInt(tx.timeStamp, 10) * 1000))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const first = dates[0];
+  const now = new Date();
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const walletAge = Math.max(
+    1,
+    Math.round((now.getTime() - first.getTime()) / msPerDay)
+  );
+
+  // aktif gün sayısı
+  const daySet = new Set(
+    dates.map((d) => d.toISOString().split("T")[0]) // YYYY-MM-DD
+  );
+  const daysActive = daySet.size;
+
+  // en uzun streak
+  const sortedDays = Array.from(daySet).sort(); // string olarak sıralayınca tarih sırası oluyor
+  let longestStreak = 1;
+  let currentStreak = 1;
+
+  const toDate = (s: string) => new Date(s + "T00:00:00Z");
+
+  for (let i = 1; i < sortedDays.length; i++) {
+    const prev = toDate(sortedDays[i - 1]).getTime();
+    const curr = toDate(sortedDays[i]).getTime();
+    const diffDays = Math.round((curr - prev) / msPerDay);
+
+    if (diffDays === 1) {
+      currentStreak += 1;
+      if (currentStreak > longestStreak) longestStreak = currentStreak;
+    } else {
+      currentStreak = 1;
+    }
+  }
+
+  // basit heuristikler
+  const deployed = txs.filter((tx) => tx.contractAddress).length;
+
+  const bridge = txs.filter((tx) =>
+    (tx.functionName || "")
+      .toLowerCase()
+      .match(/bridge|deposit|withdraw|l1|l2/)
+  ).length;
+
+  const defi = txs.filter((tx) =>
+    (tx.functionName || "")
+      .toLowerCase()
+      .match(/stake|lend|borrow|supply|liquidity|farm|vault/)
+  ).length;
+
+  return {
+    txCount: txs.length,
+    daysActive,
+    walletAge,
+    bridge,
+    defi,
+    deployed,
+    longestStreak,
+  };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const address = searchParams.get("address");
+
+    if (!address) {
+      return NextResponse.json(
+        { error: "Missing address" },
+        { status: 400 }
       );
-
-      const baseJson = await baseRes.json();
-
-      if (baseJson.status === "1" && Array.isArray(baseJson.result)) {
-        const txs = baseJson.result;
-        stats.txCount = txs.length;
-
-        if (txs.length > 0) {
-          const first = txs[0];
-          const last = txs[txs.length - 1];
-
-          const firstDate = new Date(parseInt(first.timeStamp, 10) * 1000);
-          const lastDate = new Date(parseInt(last.timeStamp, 10) * 1000);
-          const now = new Date();
-
-          stats.walletAge = daysBetween(firstDate, now);
-
-          // aktif gün sayısı = ilk tx ile son tx arasındaki günler
-          stats.daysActive = daysBetween(firstDate, lastDate) + 1;
-
-          // çok kaba streak hesabı (şimdilik placeholder)
-          stats.longestStreak = Math.min(stats.daysActive, 30);
-        }
-
-        // bridge / defi / deployed gibi alanları
-        // istediğinde daha detaylı hesaplarız, şimdilik 0 bırakıyoruz
-      } else {
-        console.error("BaseScan returned no txs:", baseJson);
-      }
-    } catch (err) {
-      console.error("BaseScan fetch failed:", err);
     }
 
-    if (!farcasterData) {
+    if (!NEYNAR_API_KEY) {
+      console.error("NEYNAR_API_KEY is missing");
       return NextResponse.json(
-        {
-          error:
-            "No Farcaster profile found for this address. Make sure your wallet is linked.",
-          farcasterData: null,
-          stats,
-        },
-        { status: 200 }
+        { error: "Server misconfigured (Neynar key missing)" },
+        { status: 500 }
       );
+    }
+
+    // ---------- NEYNAR: cüzdandan Farcaster user çek ----------
+    const neynarUrl = new URL(
+      "https://api.neynar.com/v2/farcaster/user/bulk-by-address"
+    );
+    neynarUrl.searchParams.set("addresses", address);
+
+    const neynarRes = await fetch(neynarUrl.toString(), {
+      headers: {
+        "x-api-key": NEYNAR_API_KEY,
+        accept: "application/json",
+      },
+    });
+
+    if (!neynarRes.ok) {
+      console.error(
+        "Neynar error:",
+        neynarRes.status,
+        await neynarRes.text()
+      );
+      return NextResponse.json(
+        { error: "NO_FARCASTER_USER_FOR_ADDRESS" },
+        { status: 404 }
+      );
+    }
+
+    const neynarJson: any = await neynarRes.json();
+
+    // Dokümana göre cevap `users: User[]`, ama farklı formatları da tolere edelim
+    const usersArray: any[] =
+      Array.isArray((neynarJson as any).users)
+        ? (neynarJson as any).users
+        : Array.isArray((neynarJson as any).result?.users)
+        ? (neynarJson as any).result.users
+        : (neynarJson as any).result?.user
+        ? [(neynarJson as any).result.user]
+        : [];
+
+    const user = usersArray[0];
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "NO_FARCASTER_USER_FOR_ADDRESS" },
+        { status: 404 }
+      );
+    }
+
+    const farcasterData = {
+      fid: user.fid,
+      username: user.username,
+      pfp:
+        user.pfp_url ||
+        user.pfp?.url ||
+        user.pfp?.verified ??
+        "",
+      // Verified: hem verifications hem de verified_addresses üzerinden bak
+      isVerified:
+        (Array.isArray(user.verifications) &&
+          user.verifications.length > 0) ||
+        (user.verified_addresses &&
+          Array.isArray(user.verified_addresses.eth_addresses) &&
+          user.verified_addresses.eth_addresses.length > 0) ||
+        false,
+      // Neynar score field'ı ortamına göre değişebiliyor, elde ne varsa deniyoruz
+      score:
+        typeof user.score === "number"
+          ? user.score
+          : typeof user.neynar_user_score === "number"
+          ? user.neynar_user_score
+          : typeof user.relevance_score === "number"
+          ? user.relevance_score
+          : 0,
+    };
+
+    // ---------- ETHERSCAN (BASE) → cüzdan tx taraması ----------
+    let stats = {
+      txCount: 0,
+      daysActive: 0,
+      walletAge: 0,
+      bridge: 0,
+      defi: 0,
+      deployed: 0,
+      longestStreak: 0,
+      isVerified: farcasterData.isVerified,
+    };
+
+    if (ETHERSCAN_API_KEY) {
+      const url = new URL(ETHERSCAN_BASE_URL);
+      url.searchParams.set("apikey", ETHERSCAN_API_KEY);
+      url.searchParams.set("chainid", BASE_CHAIN_ID);
+      url.searchParams.set("module", "account");
+      url.searchParams.set("action", "txlist");
+      url.searchParams.set("address", address);
+      url.searchParams.set("startblock", "0");
+      url.searchParams.set("endblock", "9999999999");
+      url.searchParams.set("page", "1");
+      url.searchParams.set("offset", "10000");
+      url.searchParams.set("sort", "asc");
+
+      const txRes = await fetch(url.toString(), {
+        headers: { accept: "application/json" },
+      });
+
+      if (txRes.ok) {
+        const txJson: any = await txRes.json();
+        if (txJson.status === "1" && Array.isArray(txJson.result)) {
+          const baseStats = computeStats(txJson.result as EtherscanTx[]);
+          stats = { ...baseStats, isVerified: farcasterData.isVerified };
+        } else {
+          console.warn("Etherscan returned no txs:", txJson.message);
+        }
+      } else {
+        console.error(
+          "Etherscan error:",
+          txRes.status,
+          await txRes.text()
+        );
+      }
+    } else {
+      console.warn("ETHERSCAN_API_KEY missing, stats will be zero");
     }
 
     return NextResponse.json(
       {
-        error: null,
         farcasterData,
         stats,
       },
       { status: 200 }
     );
-  } catch (err) {
+  } catch (err: any) {
     console.error("BasePrint API fatal error:", err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "INTERNAL_ERROR" },
       { status: 500 }
     );
   }
