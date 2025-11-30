@@ -6,15 +6,12 @@ import {
   useConnect,
   useDisconnect,
   useWriteContract,
-  useEnsName,
   type BaseError,
 } from 'wagmi';
-import { base } from 'wagmi/chains';
 import { parseEther } from 'viem';
 import sdk from '@farcaster/frame-sdk';
 
 // --- 1. CONFIG & API KEYS ---
-// API Keys are now handled server-side in /api/neynar and /api/etherscan
 const CONTRACT_ADDRESS = '0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2';
 
 // --- 2. ICONS ---
@@ -60,13 +57,11 @@ export default function Home() {
     error: mintError,
   } = useWriteContract();
 
-  // Basename Fetching (Base L2)
-  const { data: ensName } = useEnsName({ address, chainId: base.id });
-
   const [loading, setLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [basename, setBasename] = useState<string | null>(null);
 
   // Initialize Farcaster SDK and handle splash
   useEffect(() => {
@@ -85,7 +80,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // ---------- A. NEYNAR (FARCASTER USER) ----------
+      // 1. NEYNAR (FARCASTER USER)
       let farcasterData = {
         username: 'Explorer',
         pfp: '',
@@ -100,14 +95,12 @@ export default function Home() {
         if (neynarRes.ok) {
           const data = await neynarRes.json();
           farcasterData = data;
-        } else {
-          console.warn('Neynar API failed', await neynarRes.text());
         }
       } catch (e) {
         console.error('Neynar Fetch Error', e);
       }
 
-      // ---------- B. ETHERSCAN (ONCHAIN STATS) ----------
+      // 2. ETHERSCAN (ONCHAIN STATS)
       let statsData = {
         txCount: 0,
         daysActive: 0,
@@ -124,11 +117,23 @@ export default function Home() {
         if (etherscanRes.ok) {
           const data = await etherscanRes.json();
           statsData = data;
-        } else {
-          console.warn('Etherscan API failed', await etherscanRes.text());
         }
       } catch (e) {
         console.error('Etherscan Fetch Error', e);
+      }
+
+      // 3. BASENAME
+      try {
+        const basenameRes = await fetch(`/api/basename?address=${address}`);
+        if (basenameRes.ok) {
+          const data = await basenameRes.json();
+          setBasename(data.basename);
+        } else {
+          setBasename(null);
+        }
+      } catch (e) {
+        console.error('Basename Fetch Error', e);
+        setBasename(null);
       }
 
       setStats(statsData);
@@ -262,52 +267,53 @@ export default function Home() {
 
                   {/* İçerik */}
                   <div className="absolute inset-0 p-5 text-white flex flex-col justify-between z-10">
-                    {/* Üst Kısım: Logo ve Verified Badge */}
-                    <div className="flex justify-between items-start">
-                      <AppLogo className="w-8 h-8 drop-shadow-sm" />
 
-                      {/* Verified Badge (Mavi Tikli Rozet) - Farcaster Power Badge */}
-                      {userData.isVerified ? (
-                        <div className="flex items-center gap-1.5 bg-blue-500/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-blue-400">
-                          <svg
-                            className="w-3.5 h-3.5 text-white"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          <span className="text-[10px] font-bold uppercase tracking-wide">
-                            Verified
+                    {/* YENİ PROFİL DÜZENİ: Resim Solda, Bilgiler Sağda */}
+                    <div className="flex items-start gap-4">
+                      {/* SOL: Profil Resmi */}
+                      <div className="relative">
+                        <img
+                          src={userData.pfp || 'https://zora.co/assets/icon.png'}
+                          className="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-slate-800 object-cover"
+                          alt="pfp"
+                        />
+                        {/* Verified Badge Resmin Üzerinde (Opsiyonel) veya Yanında */}
+                        {userData.isVerified && (
+                          <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1 border border-white">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* SAĞ: Bilgiler */}
+                      <div className="flex flex-col flex-1 min-w-0">
+                        {/* 1. FID (En Üst) */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-blue-200 font-mono opacity-80 uppercase tracking-widest">
+                            FID: {userData.fid}
                           </span>
+                          <AppLogo className="w-6 h-6 opacity-80" />
                         </div>
-                      ) : null}
-                    </div>
 
-                    {/* Profil (Hiyerarşik Düzen) */}
-                    <div className="flex items-center gap-4 mt-2">
-                      <img
-                        src={userData.pfp || 'https://zora.co/assets/icon.png'}
-                        className="w-16 h-16 rounded-full border-2 border-white shadow-lg bg-slate-800"
-                        alt="pfp"
-                      />
-                      <div className="flex flex-col">
-                        {/* FID En Üstte (Küçük) */}
-                        <span className="text-[10px] text-blue-200 font-mono opacity-80 uppercase tracking-widest">
-                          FID: {userData.fid}
-                        </span>
-                        {/* Username Ortada (Büyük) */}
-                        <span className="text-2xl font-black tracking-tight leading-tight">
+                        {/* 2. Display Name (Kalın) */}
+                        <h3 className="text-xl font-black tracking-tight leading-tight truncate mt-1">
+                          {userData.username}
+                        </h3>
+
+                        {/* 3. Handle (@username) */}
+                        <span className="text-xs text-blue-200 font-medium truncate">
                           @{userData.username}
                         </span>
-                        {/* Base Name En Altta (Varsa) */}
-                        {ensName && (
-                          <span className="text-xs text-white font-semibold bg-blue-600/50 px-2 py-0.5 rounded-md w-fit mt-1">
-                            {ensName}
-                          </span>
+
+                        {/* 4. Basename (En Alt) */}
+                        {basename && (
+                          <div className="mt-2">
+                            <span className="text-[10px] font-bold text-[#0052FF] bg-white px-2 py-0.5 rounded-full inline-block shadow-sm">
+                              {basename}
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -383,8 +389,13 @@ export default function Home() {
                       <div className="font-black text-slate-800 text-lg">
                         {stats.defi}
                       </div>
-                      <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-tight">
-                        Lend/Borrow/Stake
+                      <div className="flex flex-col items-center justify-center leading-none mt-1">
+                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                          Lend/Borrow
+                        </span>
+                        <span className="text-[8px] text-gray-300 font-bold uppercase tracking-wider">
+                          Swap/Stake
+                        </span>
                       </div>
                     </div>
                     <div className="p-3 text-center">

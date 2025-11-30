@@ -38,6 +38,9 @@ const analyzeTransactions = (txs) => {
     let deployed = 0;
     let interactions = 0;
 
+    // Base L2 Standard Bridge Address
+    const L2_STANDARD_BRIDGE = '0x4200000000000000000000000000000000000010';
+
     txs.forEach((tx) => {
         if (tx.isError === '1') return;
 
@@ -46,21 +49,31 @@ const analyzeTransactions = (txs) => {
             return;
         }
 
+        const toAddr = tx.to.toLowerCase();
         const functionName = tx.functionName ? tx.functionName.toLowerCase() : '';
         const methodId = tx.methodId || (tx.input && tx.input.length >= 10 ? tx.input.substring(0, 10) : null);
 
-        if (
-            functionName.includes('deposit') ||
-            functionName.includes('withdraw') ||
-            functionName.includes('bridge')
-        ) {
+        // 1. Bridge Detection (Strict: Base Standard Bridge interactions)
+        if (toAddr === L2_STANDARD_BRIDGE) {
             bridge++;
         } else if (
-            ['0x32b7006d', '0x49228978', '0x5cae9c06', '0x9a2ac9d9'].includes(methodId)
+            // Fallback: Check for explicit bridge function names if not direct contract call
+            functionName.includes('withdraw') ||
+            functionName.includes('deposit') ||
+            functionName.includes('finalizebridge')
         ) {
-            bridge++;
+            // Only count if it looks like a bridge tx (heuristic)
+            // But user asked to be sure about Base-Eth bridge. 
+            // Checking the L2StandardBridge address is the most reliable way for official bridge.
+            // We'll keep the strict check primarily, and maybe relax slightly for known portals if needed.
+            // For now, let's stick to the address check + explicit bridge methods on other contracts if they seem related.
+            if (functionName.includes('bridge')) {
+                bridge++;
+            }
         }
 
+        // 2. DeFi / Interaction Detection (Lend/Borrow/Stake/Swap)
+        // Exclude simple transfers (0x) and standard token transfers (0xa9059cbb)
         if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') {
             if (
                 functionName.includes('supply') ||
@@ -68,10 +81,13 @@ const analyzeTransactions = (txs) => {
                 functionName.includes('stake') ||
                 functionName.includes('swap') ||
                 functionName.includes('vote') ||
-                functionName.includes('propose')
+                functionName.includes('propose') ||
+                functionName.includes('mint') || // Often DeFi related
+                functionName.includes('deposit') // Often DeFi related (liquidity)
             ) {
                 interactions++;
             } else if (!functionName && methodId) {
+                // If no function name, assume complex interaction if not transfer
                 interactions++;
             }
         }
@@ -106,7 +122,6 @@ export default async function handler(req, res) {
         const balJson = await balRes.json();
 
         if (txJson.status === '0' && txJson.message === 'No transactions found') {
-            // New wallet or no txs
             return res.status(200).json({
                 txCount: 0,
                 daysActive: 0,
