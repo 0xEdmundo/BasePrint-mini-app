@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    
+    <!-- Uygulama Başlığı -->
+    <title>BasePrint - Base & Farcaster NFT Mint App</title>
+
+    <!-- Farcaster Frame Meta Etiketleri -->
+    <!-- Bu etiketler, uygulamanızın Farcaster akışında nasıl görüneceğini belirler. -->
+    <meta property="fc:frame" content="vNext" />
+    <!-- Frame'in Farcaster akışında gösterileceği görselin URL'si. -->
+    <meta property="fc:frame:image" content="https://placehold.co/600x400/24375A/FFFFFF?text=BasePrint+NFT+Mint" />
+    <!-- Frame'deki ilk ve tek butonun etiketi -->
+    <meta property="fc:frame:button:1" content="Launch App and Mint NFT" />
+    <!-- Butona tıklandığında kullanıcının yönlendirileceği eylem: "link" (dış bağlantı açar) -->
+    <meta property="fc:frame:button:1:action" content="link" />
+    <!-- Butona tıklandığında açılacak URL (Sizin canlı Vercel adresiniz) -->
+    <meta property="fc:frame:button:1:target" content="https://baseprint.vercel.app/" />
+    
+    <!-- Standart Sosyal Medya (Open Graph) Etiketleri -->
+    <meta property="og:title" content="BasePrint: Base & Farcaster NFT Mint" />
+    <meta property="og:description" content="Click to launch the BasePrint application and mint your NFT on Base." />
+    <meta property="og:image" content="https://placehold.co/600x400/24375A/FFFFFF?text=BasePrint+NFT+Mint" />
+    
+    <!-- Tailwind CSS (React uygulamanızın styles/index.css içinde Tailwind'i içeri aktardığı varsayılır) -->
+    <link rel="stylesheet" href="%PUBLIC_URL%/styles/index.css">
+    
+</head>
+<body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <!-- React uygulamasının render edileceği div -->
+    <div id="root"></div>
+</body>
+</html>
