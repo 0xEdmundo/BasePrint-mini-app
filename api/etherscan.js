@@ -1,36 +1,162 @@
 import fetch from 'node-fetch';
 
-/**
- * GET /api/etherscan?address=0x...
- * Returns native balance (in ETH) for the given address using Etherscan (or BaseScan) API.
- */
+// Helper functions for analysis
+const calculateStreak = (uniqueDates) => {
+    if (!uniqueDates.length) return 0;
+    const sortedDates = [...uniqueDates].sort(
+        (a, b) => new Date(b).getTime() - new Date(a).getTime()
+    );
+    let longestStreak = 1;
+    let currentStreak = 1;
+    for (let i = 0; i < sortedDates.length - 1; i++) {
+        const d1 = new Date(sortedDates[i]);
+        const d2 = new Date(sortedDates[i + 1]);
+        const diffTime = Math.abs(d1.getTime() - d2.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+            currentStreak++;
+        } else {
+            if (currentStreak > longestStreak) longestStreak = currentStreak;
+            currentStreak = 1;
+        }
+    }
+    if (currentStreak > longestStreak) longestStreak = currentStreak;
+    return longestStreak;
+};
+
+const calculateWalletAgeDays = (firstTxTimestamp) => {
+    if (!firstTxTimestamp) return 0;
+    const now = new Date().getTime();
+    const firstDate = new Date(firstTxTimestamp * 1000).getTime();
+    const diffTime = Math.abs(now - firstDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+};
+
+const analyzeTransactions = (txs) => {
+    let bridge = 0;
+    let deployed = 0;
+    let interactions = 0;
+
+    txs.forEach((tx) => {
+        if (tx.isError === '1') return;
+
+        if (!tx.to || tx.to === '') {
+            deployed++;
+            return;
+        }
+
+        const functionName = tx.functionName ? tx.functionName.toLowerCase() : '';
+        const methodId = tx.methodId || (tx.input && tx.input.length >= 10 ? tx.input.substring(0, 10) : null);
+
+        if (
+            functionName.includes('deposit') ||
+            functionName.includes('withdraw') ||
+            functionName.includes('bridge')
+        ) {
+            bridge++;
+        } else if (
+            ['0x32b7006d', '0x49228978', '0x5cae9c06', '0x9a2ac9d9'].includes(methodId)
+        ) {
+            bridge++;
+        }
+
+        if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') {
+            if (
+                functionName.includes('supply') ||
+                functionName.includes('borrow') ||
+                functionName.includes('stake') ||
+                functionName.includes('swap') ||
+                functionName.includes('vote') ||
+                functionName.includes('propose')
+            ) {
+                interactions++;
+            } else if (!functionName && methodId) {
+                interactions++;
+            }
+        }
+    });
+
+    return { bridge, defi: interactions, deployed };
+};
+
 export default async function handler(req, res) {
     const { address } = req.query;
+
     if (!address) {
-        return res.status(400).json({ error: 'Missing address query parameter' });
+        return res.status(400).json({ error: 'Missing address parameter' });
     }
-    const apiKey = process.env.ETHERSCAN_API_KEY;
+
+    const apiKey = process.env.ETHERSCAN_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
+
     if (!apiKey) {
-        return res.status(500).json({ error: 'Etherscan API key not configured' });
+        console.error('Etherscan API key missing');
+        return res.status(500).json({ error: 'Server configuration error' });
     }
-    // Using Etherscan API for Base (or Ethereum). Adjust base URL if needed.
-    const url = `https://api.etherscan.io/api?module=account&action=balance&address=${encodeURIComponent(address)}&tag=latest&apikey=${apiKey}`;
+
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            const txt = await response.text();
-            throw new Error(`Etherscan request failed: ${response.status} ${txt}`);
+        // 1. Fetch Transaction List
+        const txUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
+        const txRes = await fetch(txUrl);
+        const txJson = await txRes.json();
+
+        // 2. Fetch Balance
+        const balUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+        const balRes = await fetch(balUrl);
+        const balJson = await balRes.json();
+
+        if (txJson.status === '0' && txJson.message === 'No transactions found') {
+            // New wallet or no txs
+            return res.status(200).json({
+                txCount: 0,
+                daysActive: 0,
+                longestStreak: 0,
+                bridge: 0,
+                defi: 0,
+                deployed: 0,
+                walletAge: 0,
+                isVerified: false
+            });
         }
-        const data = await response.json();
-        if (data.status !== '1') {
-            throw new Error(`Etherscan error: ${data.message}`);
+
+        if (!Array.isArray(txJson.result)) {
+            throw new Error(`Invalid Etherscan response: ${JSON.stringify(txJson)}`);
         }
-        // Balance is returned in wei, convert to ETH (as string)
-        const wei = BigInt(data.result);
-        const eth = Number(wei) / 1e18;
-        return res.status(200).json({ success: true, balance: eth.toString() });
-    } catch (err) {
-        console.error('Etherscan fetch error:', err);
-        return res.status(500).json({ success: false, error: err.message });
+
+        const txs = txJson.result;
+
+        // Calculations
+        const uniqueDates = Array.from(
+            new Set(
+                txs.map((tx) =>
+                    new Date(parseInt(tx.timeStamp) * 1000).toDateString()
+                )
+            )
+        );
+
+        const analysis = analyzeTransactions(txs);
+        const longestStreak = calculateStreak(uniqueDates);
+        const firstTxTimestamp = txs.length > 0 ? parseInt(txs[0].timeStamp, 10) : 0;
+        const walletAgeDays = calculateWalletAgeDays(firstTxTimestamp);
+
+        const balanceRaw = typeof balJson.result === 'string' ? parseInt(balJson.result || '0', 10) : 0;
+        const isVerified = txs.length > 5 && balanceRaw > 0;
+
+        const stats = {
+            txCount: txs.length,
+            daysActive: uniqueDates.length,
+            longestStreak,
+            bridge: analysis.bridge,
+            defi: analysis.defi,
+            deployed: analysis.deployed,
+            walletAge: walletAgeDays,
+            isVerified
+        };
+
+        return res.status(200).json(stats);
+
+    } catch (error) {
+        console.error('Etherscan Handler Error:', error);
+        return res.status(500).json({ error: 'Failed to fetch onchain data' });
     }
 }
