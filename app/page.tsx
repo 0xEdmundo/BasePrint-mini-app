@@ -143,8 +143,9 @@ function BasePrintContent() {
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
 
+  // ✅ Splash süresi 3.5 saniye
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2000);
+    const timer = setTimeout(() => setShowSplash(false), 3500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -164,45 +165,28 @@ function BasePrintContent() {
 
       if (NEYNAR_API_KEY) {
         try {
-          // 1) Yeni endpoint: bulk-by-address
-          let user: any | undefined;
-
-          const res1 = await fetch(
+          // Dokümandaki "bulk users by eth or sol address" endpoint
+          // https://docs.neynar.com/reference/fetch-bulk-users-by-eth-or-sol-address
+          const neynarRes = await fetch(
             `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${address}`,
             {
               headers: {
-                api_key: NEYNAR_API_KEY,
+                'x-api-key': NEYNAR_API_KEY, // ✅ dokümana göre doğru header
                 accept: 'application/json',
               },
             }
           );
-          const json1 = await res1.json();
-          if (json1?.users && json1.users.length > 0) {
-            user = json1.users[0];
-          }
 
-          // 2) Yedek: eski bulk endpoint (adres paramı)
-          if (!user) {
-            const res2 = await fetch(
-              `https://api.neynar.com/v2/farcaster/user/bulk?addresses=${address}&viewer_fid=3`,
-              {
-                headers: {
-                  api_key: NEYNAR_API_KEY,
-                  accept: 'application/json',
-                },
-              }
-            );
-            const json2 = await res2.json();
-            if (json2?.users && json2.users.length > 0) {
-              user = json2.users[0];
-            }
-          }
+          const neynarJson = await neynarRes.json();
+          console.log('Neynar response:', neynarJson);
+
+          const user = neynarJson?.users?.[0];
 
           if (user) {
             farcasterData = {
               username: user.username,
               pfp: user.pfp_url,
-              score: user.score ?? 0.5,
+              score: user.score ?? user.experimental?.neynar_user_score ?? 0.5,
               fid: user.fid,
               since: user.created_at
                 ? new Date(user.created_at).getFullYear().toString()
@@ -270,7 +254,7 @@ function BasePrintContent() {
         }
       }
 
-      // Eğer etherscan patlarsa yine de boş data ile kartı göster
+      // Etherscan başarısızsa bile boş struct ile kartı gösterelim
       setStats(
         statsData || {
           txCount: 0,
@@ -386,7 +370,7 @@ function BasePrintContent() {
                     connectors[0];
                   connect({ connector: preferredConnector });
                 }}
-                className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
+                className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justifycenter gap-2 mb-3"
               >
                 Connect Wallet
               </button>
@@ -464,7 +448,7 @@ function BasePrintContent() {
                       </div>
                     </div>
 
-                    {/* Neynar Score Bar (Tek Veri) */}
+                    {/* Neynar Score Bar */}
                     <div className="mt-auto">
                       <div className="flex justify-between items-end mb-1">
                         <span className="text-[10px] text-blue-200 font-bold uppercase">
@@ -484,7 +468,7 @@ function BasePrintContent() {
                   </div>
                 </div>
 
-                {/* --- STATS GRID (REORDERED) --- */}
+                {/* --- STATS GRID --- */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-sm">
                   {/* Row 1: Active Days | Wallet Age */}
                   <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
