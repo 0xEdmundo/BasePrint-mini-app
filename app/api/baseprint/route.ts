@@ -1,242 +1,219 @@
+// app/api/baseprint/route.ts
 import { NextResponse } from "next/server";
 
-// Vercel'de tanımlı env değişkenleri (şu an sende böyle)
-const NEYNAR_API_KEY = process.env.NEXT_PUBLIC_NEYNAR_API_KEY;
-const ETHERSCAN_API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
+const NEYNAR_API_KEY = process.env.NEXT_PUBLIC_NEYNAR_API_KEY || "";
+const ETHERSCAN_API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || "";
 
-// -----------------------------
-// Helpers
-// -----------------------------
+type NeynarUser = {
+  fid: number;
+  username: string;
+  pfp_url: string;
+  created_at?: number;
+  score?: number;
+};
 
-// Günlük aktiflik streak hesabı
-function calculateStreak(dateStrings: string[]): number {
-  if (!dateStrings.length) return 0;
+// --- Helpers ---
 
-  const dates = dateStrings
-    .map((d) => new Date(d))
-    .sort((a, b) => a.getTime() - b.getTime());
+function calculateStreak(uniqueDates: string[]): number {
+  if (!uniqueDates.length) return 0;
+  const sortedDates = [...uniqueDates].sort(
+    (a, b) => new Date(b).getTime() - new Date(a).getTime()
+  );
 
-  let longest = 1;
-  let current = 1;
+  let longestStreak = 1;
+  let currentStreak = 1;
 
-  for (let i = 1; i < dates.length; i++) {
-    const diffDays =
-      (dates[i].getTime() - dates[i - 1].getTime()) / (1000 * 60 * 60 * 24);
+  for (let i = 0; i < sortedDates.length - 1; i++) {
+    const d1 = new Date(sortedDates[i]);
+    const d2 = new Date(sortedDates[i + 1]);
+    const diffTime = Math.abs(d1.getTime() - d2.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 1) {
-      current++;
+      currentStreak++;
     } else {
-      if (current > longest) longest = current;
-      current = 1;
+      if (currentStreak > longestStreak) longestStreak = currentStreak;
+      currentStreak = 1;
     }
   }
 
-  if (current > longest) longest = current;
-  return longest;
+  if (currentStreak > longestStreak) longestStreak = currentStreak;
+  return longestStreak;
 }
 
-// Cüzdan yaşını gün cinsinden hesapla
 function calculateWalletAgeDays(firstTxTimestamp: number): number {
   if (!firstTxTimestamp) return 0;
-  const first = new Date(firstTxTimestamp * 1000);
-  const now = new Date();
-  return Math.floor((now.getTime() - first.getTime()) / (1000 * 60 * 60 * 24));
+  const now = Date.now();
+  const firstDate = firstTxTimestamp * 1000;
+  const diffTime = Math.abs(now - firstDate);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
-// Bridge / DeFi / Deployed kontrat analizi
 function analyzeTransactions(txs: any[]) {
   let bridge = 0;
   let deployed = 0;
   let interactions = 0;
 
-  for (const tx of txs) {
-    // Kontrat deploy: "to" boş
+  const BRIDGE_METHODS = [
+    "0x32b7006d",
+    "0x49228978",
+    "0x5cae9c06",
+    "0x9a2ac9d9",
+  ];
+
+  txs.forEach((tx) => {
     if (!tx.to || tx.to === "") {
       deployed++;
-      continue;
+      return;
     }
 
-    // methodId varsa kullan, yoksa input'tan çıkar
     const method =
       tx.methodId ||
       (tx.input && tx.input.length >= 10 ? tx.input.substring(0, 10) : null);
 
     if (method && method !== "0x") {
       interactions++;
-
-      // Bilinen bridge methodId listesi (L1<->Base köprüleri)
-      if (
-        [
-          "0x32b7006d",
-          "0x49228978",
-          "0x5cae9c06",
-          "0x9a2ac9d9", // örnek: resmi bridge kontratlarının method id'leri
-        ].includes(method)
-      ) {
+      if (BRIDGE_METHODS.includes(method)) {
         bridge++;
       }
     }
-  }
+  });
 
-  // Lend/Borrow/Stake sayısı (heuristic)
+  // DeFi: köprü dışındaki etkileşimlerden kabaca türetiyoruz
   const defi = Math.max(0, Math.floor((interactions - bridge) * 0.4));
 
   return { bridge, defi, deployed };
 }
 
-// -----------------------------
-// MAIN API ROUTE
-// -----------------------------
+// --- API Handler ---
+
 export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const address = searchParams.get("address");
+  const { searchParams } = new URL(req.url);
+  const address = searchParams.get("address");
 
-    if (!address) {
-      return NextResponse.json(
-        { error: "Missing address parameter" },
-        { status: 400 }
-      );
-    }
-
-    if (!NEYNAR_API_KEY || !ETHERSCAN_API_KEY) {
-      return NextResponse.json(
-        { error: "Server config error: missing NEYNAR_API_KEY or ETHERSCAN_API_KEY" },
-        { status: 500 }
-      );
-    }
-
-    // ----------------------------------
-    // 1) NEYNAR: wallet -> Farcaster profile
-    // ----------------------------------
-    const neynarRes = await fetch(
-      `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${address}`,
-      {
-        headers: {
-          "api-key": NEYNAR_API_KEY,
-          accept: "application/json",
-        },
-        cache: "no-store",
-      }
+  if (!address) {
+    return NextResponse.json(
+      { error: "Missing address" },
+      { status: 400 }
     );
+  }
 
-    if (!neynarRes.ok) {
-      const txt = await neynarRes.text();
-      console.error("Neynar error body:", txt);
-      return NextResponse.json(
-        { error: "Neynar request failed", details: txt },
-        { status: 502 }
+  const lowerAddress = address.toLowerCase();
+
+  let farcasterData: {
+    username: string;
+    pfp: string;
+    score: number;
+    fid: number;
+    since: string;
+  } | null = null;
+
+  let stats:
+    | {
+        txCount: number;
+        daysActive: number;
+        longestStreak: number;
+        bridge: number;
+        defi: number;
+        deployed: number;
+        walletAge: number;
+        isVerified: boolean;
+      }
+    | null = null;
+
+  try {
+    // 1) NEYNAR - adres -> Farcaster user
+    if (NEYNAR_API_KEY) {
+      const neynarRes = await fetch(
+        `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${lowerAddress}`,
+        {
+          headers: {
+            accept: "application/json",
+            api_key: NEYNAR_API_KEY,
+          },
+          cache: "no-store",
+        }
       );
+
+      const neynarJson = await neynarRes.json();
+      const addrKey =
+        neynarJson[lowerAddress] ||
+        neynarJson[address] ||
+        neynarJson[lowerAddress.toLowerCase()];
+      const users: NeynarUser[] = Array.isArray(addrKey) ? addrKey : [];
+
+      const u = users[0];
+
+      if (u) {
+        farcasterData = {
+          username: u.username,
+          pfp: u.pfp_url,
+          score: typeof u.score === "number" ? u.score : 0,
+          fid: u.fid,
+          since: u.created_at
+            ? new Date(u.created_at * 1000).getFullYear().toString()
+            : "",
+        };
+      }
     }
 
-    const neynarJson: any = await neynarRes.json();
+    // 2) ETHERSCAN - Base chain tx + balance
+    if (ETHERSCAN_API_KEY) {
+      const baseUrl = "https://api.etherscan.io/v2/api";
+      const common = `chainid=8453&apikey=${ETHERSCAN_API_KEY}`;
 
-    const list = neynarJson?.users?.[address];
-
-    if (!Array.isArray(list) || list.length === 0) {
-      // Wallet Farcaster’a bağlı değil => fallback yok, direkt hata
-      return NextResponse.json(
-        { error: "No Farcaster profile found for this address" },
-        { status: 404 }
+      const txRes = await fetch(
+        `${baseUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&${common}`,
+        { cache: "no-store" }
       );
-    }
+      const txJson = await txRes.json();
 
-    const u = list[0];
+      const balRes = await fetch(
+        `${baseUrl}?module=account&action=balance&address=${address}&tag=latest&${common}`,
+        { cache: "no-store" }
+      );
+      const balJson = await balRes.json();
 
-    // pfp alanı bazı versiyonlarda u.pfp.url, bazısında u.pfp_url
-    const pfp =
-      (u.pfp && (u.pfp.url || u.pfp.picture_url)) ||
-      u.pfp_url ||
-      "";
+      if (Array.isArray(txJson.result) && txJson.result.length > 0) {
+        const txs = txJson.result as any[];
 
-    // score alanı versiyona göre değişebiliyor, hepsini sırayla deniyoruz
-    const rawScore =
-      typeof u.score === "number"
-        ? u.score
-        : typeof u.neynar_user_score === "number"
-        ? u.neynar_user_score
-        : typeof u.farcaster_score === "number"
-        ? u.farcaster_score
-        : 0;
-
-    const farcasterData = {
-      fid: u.fid,
-      username: u.username,
-      pfp,
-      score: rawScore,
-    };
-
-    // ----------------------------------
-    // 2) ETHERSCAN (chainid=8453, Base)
-    // ----------------------------------
-
-    // Tüm TX listesi
-    const txUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
-
-    const txRes = await fetch(txUrl, { cache: "no-store" });
-    const txJson: any = await txRes.json();
-
-    // Default stats
-    let stats = {
-      txCount: 0,
-      daysActive: 0,
-      longestStreak: 0,
-      bridge: 0,
-      defi: 0,
-      deployed: 0,
-      walletAge: 0,
-      isVerified: false,
-    };
-
-    if (Array.isArray(txJson.result) && txJson.result.length > 0) {
-      const txs = txJson.result;
-
-      const uniqueDates = Array.from(
-        new Set(
-          txs.map((tx: any) =>
-            new Date(parseInt(tx.timeStamp, 10) * 1000).toDateString()
+        const uniqueDates = Array.from(
+          new Set(
+            txs.map((tx) =>
+              new Date(Number(tx.timeStamp) * 1000).toDateString()
+            )
           )
-        )
-      ) as string[];
+        ) as string[];
 
-      const analysis = analyzeTransactions(txs);
+        const analysis = analyzeTransactions(txs);
+        const firstTs = Number(txs[0].timeStamp) || 0;
+        const walletAge = calculateWalletAgeDays(firstTs);
 
-      const firstTxTs = parseInt(txs[0].timeStamp || "0", 10);
-      const walletAge = calculateWalletAgeDays(firstTxTs);
+        const balanceRaw = BigInt(balJson.result || "0");
+        const hasBalance = balanceRaw > BigInt(0);
+        const isVerified = txs.length > 5 && hasBalance;
 
-      // Balance
-      const balUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=balance&address=${address}&tag=latest&apikey=${ETHERSCAN_API_KEY}`;
-      const balRes = await fetch(balUrl, { cache: "no-store" });
-      const balJson: any = await balRes.json();
-
-      const balanceRaw = BigInt(balJson.result || "0");
-      const hasBalance = balanceRaw > BigInt(0);
-
-      const isVerified = txs.length > 5 && hasBalance;
-
-      stats = {
-        txCount: txs.length,                 // TOTAL TXs
-        daysActive: uniqueDates.length,      // ACTIVE DAYS
-        longestStreak: calculateStreak(uniqueDates), // BEST STREAK
-        bridge: analysis.bridge,             // BRIDGE TXs (L1<->Base)
-        defi: analysis.defi,                 // Lend/Borrow/Stake (DeFi)
-        deployed: analysis.deployed,         // SMART CONTRACTS
-        walletAge,                           // WALLET AGE (days)
-        isVerified,                          // "verified" mantığı
-      };
+        stats = {
+          txCount: txs.length,
+          daysActive: uniqueDates.length,
+          longestStreak: calculateStreak(uniqueDates),
+          bridge: analysis.bridge,
+          defi: analysis.defi,
+          deployed: analysis.deployed,
+          walletAge,
+          isVerified,
+        };
+      }
     }
 
-    // ----------------------------------
-    // 3) RESPONSE
-    // ----------------------------------
     return NextResponse.json({
       farcasterData,
       stats,
     });
-  } catch (err: any) {
-    console.error("BasePrint /api/baseprint error:", err);
+  } catch (err) {
+    console.error("BasePrint API error:", err);
     return NextResponse.json(
-      { error: err?.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
