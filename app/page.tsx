@@ -14,7 +14,7 @@ import { base } from "wagmi/chains";
 import { injected, coinbaseWallet } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { parseEther } from "viem";
-import { sdk } from "@farcaster/miniapp-sdk"; // 🔵 YENİ SDK
+import { sdk } from "@farcaster/miniapp-sdk";
 
 // CONFIG ------------------
 
@@ -106,25 +106,23 @@ function BasePrintContent() {
   const [showSplash, setShowSplash] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  // 🔵 SPLASH + MINI APP READY -----------------------
+  // SPLASH + MINI APP READY -----------------------
   useEffect(() => {
     let cancelled = false;
 
     const init = async () => {
       try {
-        // Mini app içinde miyiz?
         const inMiniApp = await sdk.isInMiniApp().catch(() => false);
 
         if (inMiniApp) {
-          // Base/Farcaster mini app splash ekranını kapat
           await sdk.actions.ready();
         }
       } catch (err) {
         console.error("MiniApp sdk init error:", err);
       } finally {
         if (!cancelled) {
-          // Bizim kendi splash'ı da kapat
           setShowSplash(false);
         }
       }
@@ -141,23 +139,48 @@ function BasePrintContent() {
   const fetchData = useCallback(async () => {
     if (!address) return;
     setLoading(true);
+    setApiError(null);
 
     try {
       const res = await fetch(`/api/baseprint?address=${address}`);
+      let json: any = null;
 
-      if (!res.ok) {
+      try {
+        json = await res.json();
+      } catch {
+        // body yoksa
+      }
+
+      console.log("BasePrint API response:", json);
+
+      if (!res.ok || !json) {
         setUserData(null);
         setStats(null);
+        setApiError("Failed to fetch BasePrint data.");
         return;
       }
 
-      const json = await res.json();
-      console.log("BasePrint API response:", json); // debug için
+      if (json.error) {
+        setUserData(null);
+        setStats(json.stats ?? null);
+        setApiError(json.error);
+        return;
+      }
+
+      if (!json.farcasterData || !json.stats) {
+        setUserData(null);
+        setStats(json.stats ?? null);
+        setApiError("No BasePrint data found for this address.");
+        return;
+      }
 
       setUserData(json.farcasterData);
       setStats(json.stats);
     } catch (e) {
       console.error(e);
+      setUserData(null);
+      setStats(null);
+      setApiError("Network error while fetching BasePrint data.");
     } finally {
       setLoading(false);
     }
@@ -207,6 +230,7 @@ function BasePrintContent() {
   // SHARE ------------------
 
   const handleShare = () => {
+    if (!userData || !stats) return;
     const url = createFarcasterCastUrl(userData.username, stats.isVerified);
     window.open(url, "_blank");
   };
@@ -260,12 +284,40 @@ function BasePrintContent() {
         ) : (
           // --------------------- CONNECTED ---------------------
           <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
-            {loading || !userData || !stats ? (
+            {loading ? (
               <div className="flex flex-col items-center justify-center flex-1">
                 <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-xs text-slate-400 font-mono">
                   SCANNING BASE CHAIN...
                 </p>
+              </div>
+            ) : apiError ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
+                <p className="text-sm text-red-500 font-medium mb-2">
+                  {apiError}
+                </p>
+                <p className="text-xs text-slate-500 mb-4">
+                  Make sure this wallet is linked to a Farcaster profile and try
+                  again.
+                </p>
+                <button
+                  onClick={fetchData}
+                  className="px-4 py-2 rounded-lg bg-[#0052FF] text-white text-xs font-bold"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : !userData || !stats ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
+                <p className="text-sm text-slate-500 mb-4">
+                  No BasePrint data found for this address.
+                </p>
+                <button
+                  onClick={fetchData}
+                  className="px-4 py-2 rounded-lg bg-[#0052FF] text-white text-xs font-bold"
+                >
+                  Refresh
+                </button>
               </div>
             ) : (
               <>
