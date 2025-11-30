@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   useAccount,
   useConnect,
@@ -9,30 +9,16 @@ import {
   useEnsName,
   type BaseError,
 } from 'wagmi';
-import { createConfig, http, WagmiProvider } from 'wagmi';
 import { base } from 'wagmi/chains';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { injected, coinbaseWallet } from 'wagmi/connectors';
 import { parseEther } from 'viem';
+import sdk from '@farcaster/frame-sdk';
 
 // --- 1. CONFIG & API KEYS ---
 const NEYNAR_API_KEY = process.env.NEXT_PUBLIC_NEYNAR_API_KEY || '';
 const ETHERSCAN_API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || '';
 const CONTRACT_ADDRESS = '0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2';
 
-// --- 2. WAGMI SETUP ---
-const queryClient = new QueryClient();
-
-const config = createConfig({
-  chains: [base],
-  transports: { [base.id]: http() },
-  connectors: [
-    coinbaseWallet({ appName: 'BasePrint', preference: 'smartWalletOnly' }),
-    injected(),
-  ],
-});
-
-// --- 3. ICONS ---
+// --- 2. ICONS ---
 const AppLogo = ({ className }: { className?: string }) => (
   <svg
     viewBox="0 0 100 100"
@@ -63,7 +49,7 @@ const FarcasterIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// --- 4. LOGIC & HELPERS ---
+// --- 3. LOGIC & HELPERS ---
 const calculateStreak = (uniqueDates: string[]) => {
   if (!uniqueDates.length) return 0;
   const sortedDates = [...uniqueDates].sort(
@@ -123,8 +109,8 @@ const analyzeTransactions = (txs: any[]) => {
   return { bridge, defi, deployed };
 };
 
-// --- 5. MAIN COMPONENT ---
-function BasePrintContent() {
+// --- 4. MAIN COMPONENT ---
+export default function Home() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
@@ -143,13 +129,23 @@ function BasePrintContent() {
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
 
-  // ✅ Splash süresi 3.5 saniye
+  // Initialize Farcaster SDK and handle splash
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 3500);
-    return () => clearTimeout(timer);
+    const init = async () => {
+      // sdk.actions.ready() is called in providers.tsx, but we can also check context here
+      const context = await sdk.context;
+      if (context?.user) {
+        console.log('Farcaster Context User:', context.user);
+        // We could pre-fill user data here if we wanted
+      }
+
+      // Hide splash after a delay or when ready
+      setTimeout(() => setShowSplash(false), 1500);
+    };
+    init();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!address) return;
     setLoading(true);
 
@@ -165,21 +161,17 @@ function BasePrintContent() {
 
       if (NEYNAR_API_KEY) {
         try {
-          // Dokümandaki "bulk users by eth or sol address" endpoint
-          // https://docs.neynar.com/reference/fetch-bulk-users-by-eth-or-sol-address
           const neynarRes = await fetch(
             `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${address}`,
             {
               headers: {
-                'x-api-key': NEYNAR_API_KEY, // ✅ dokümana göre doğru header
+                'x-api-key': NEYNAR_API_KEY,
                 accept: 'application/json',
               },
             }
           );
 
           const neynarJson = await neynarRes.json();
-          console.log('Neynar response:', neynarJson);
-
           const user = neynarJson?.users?.[0];
 
           if (user) {
@@ -192,8 +184,6 @@ function BasePrintContent() {
                 ? new Date(user.created_at).getFullYear().toString()
                 : '2024',
             };
-          } else {
-            console.warn('No Farcaster profile for address', address);
           }
         } catch (e) {
           console.error('Neynar Error', e);
@@ -215,7 +205,6 @@ function BasePrintContent() {
 
           if (Array.isArray(txJson.result) && txJson.result.length > 0) {
             const txs = txJson.result;
-
             const uniqueDates = Array.from(
               new Set(
                 txs.map((tx: any) =>
@@ -246,15 +235,12 @@ function BasePrintContent() {
               walletAge: walletAgeDays,
               isVerified,
             };
-          } else {
-            console.warn('No tx result from Etherscan', txJson);
           }
         } catch (e) {
           console.error('Etherscan Error', e);
         }
       }
 
-      // Etherscan başarısızsa bile boş struct ile kartı gösterelim
       setStats(
         statsData || {
           txCount: 0,
@@ -276,11 +262,11 @@ function BasePrintContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [address]);
 
   useEffect(() => {
     if (isConnected) fetchData();
-  }, [isConnected, address]);
+  }, [isConnected, address, fetchData]);
 
   const handleMint = () => {
     if (!userData || !stats) return;
@@ -362,7 +348,6 @@ function BasePrintContent() {
             </p>
 
             <div className="w-full px-8">
-              {/* Tek Buton: Akıllı Bağlantı */}
               <button
                 onClick={() => {
                   const preferredConnector =
@@ -370,7 +355,7 @@ function BasePrintContent() {
                     connectors[0];
                   connect({ connector: preferredConnector });
                 }}
-                className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justifycenter gap-2 mb-3"
+                className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
               >
                 Connect Wallet
               </button>
@@ -552,11 +537,10 @@ function BasePrintContent() {
                   disabled={isPending || isSuccess}
                   onClick={handleMint}
                   className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
-                                ${
-                                  isSuccess
-                                    ? 'bg-green-500'
-                                    : 'bg-[#0052FF] hover:bg-blue-700'
-                                }`}
+                                ${isSuccess
+                      ? 'bg-green-500'
+                      : 'bg-[#0052FF] hover:bg-blue-700'
+                    }`}
                 >
                   {isPending ? (
                     <span className="animate-pulse">Processing...</span>
@@ -584,16 +568,5 @@ function BasePrintContent() {
         )}
       </div>
     </div>
-  );
-}
-
-// 5. MAIN WRAPPER
-export default function Page() {
-  return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <BasePrintContent />
-      </QueryClientProvider>
-    </WagmiProvider>
   );
 }
