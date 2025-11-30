@@ -19,6 +19,7 @@ import { parseEther } from 'viem';
 const NEYNAR_API_KEY = process.env.NEXT_PUBLIC_NEYNAR_API_KEY || '';
 const ETHERSCAN_API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || '';
 const CONTRACT_ADDRESS = '0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2';
+const BASE_APP_URL = "https://baseprint.vercel.app"; // Proje URL'niz
 
 // --- 2. WAGMI SETUP ---
 const queryClient = new QueryClient();
@@ -123,6 +124,29 @@ const analyzeTransactions = (txs: any[]) => {
   return { bridge, defi, deployed };
 };
 
+// --- YENİ EKLENEN: Farcaster Cast URL Oluşturucu ---
+const createFarcasterCastUrl = (username: string, tokenId: string, isVerified: boolean) => {
+    // NFT'nin metadata API linki (görsel/embed için)
+    // Eğer tokenId henüz yoksa (örn: mint öncesi), varsayılan bir görsel kullanabiliriz
+    const nftMetadataUrl = tokenId ? `${BASE_APP_URL}/api/token/${tokenId}` : BASE_APP_URL; 
+    
+    const verificationStatus = isVerified ? "✅ Verified" : "🔍 Unverified";
+    
+    const castText = `
+    Just minted my BasePrint Identity! 🚀
+
+    Username: @${username}
+    Base Status: ${verificationStatus}
+
+    Mint your BasePrint NFT and prove your onchain identity on Base! 
+    
+    #BasePrint #Base #Farcaster
+    `;
+
+    const encodedText = encodeURIComponent(castText.trim());
+    return `https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${nftMetadataUrl}`;
+};
+
 // --- 5. MAIN COMPONENT ---
 function BasePrintContent() {
   const { address, isConnected } = useAccount();
@@ -132,6 +156,7 @@ function BasePrintContent() {
     writeContract,
     isPending,
     isSuccess,
+    data: hash, // Mint işlemi hash'i
     error: mintError,
   } = useWriteContract();
 
@@ -142,6 +167,11 @@ function BasePrintContent() {
   const [showSplash, setShowSplash] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  
+  // YENİ: Mint edilen Token ID'yi tahmin etmek veya almak için state
+  // Basitlik için, hash varsa başarılı sayıp paylaşım butonunu açıyoruz.
+  // Gerçek bir uygulamada tx receipt'ten token ID'yi okumak gerekir.
+  // Şimdilik paylaşım için genel URL veya varsayılan ID kullanacağız.
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 2000);
@@ -275,6 +305,16 @@ function BasePrintContent() {
       ],
       value: parseEther('0.0002'),
     });
+  };
+  
+  // YENİ EKLENEN: Paylaşım Butonu İşlevi
+  const handleShare = () => {
+      if (!userData || !stats) return;
+      // Token ID'yi şimdilik dinamik alamadığımız için genel URL'yi paylaşıyoruz
+      // veya son mint edilen ID'yi tahmin etmeye çalışabiliriz.
+      // Basitlik için 'latest' veya boş bırakıyoruz, API sonuncuyu bulabilirse ne ala.
+      const shareUrl = createFarcasterCastUrl(userData.username, '', stats.isVerified);
+      window.open(shareUrl, '_blank');
   };
 
   // --- RENDER ---
@@ -508,30 +548,40 @@ function BasePrintContent() {
                   </div>
                 </div>
 
-                {/* --- MINT BUTTON --- */}
-                <button
-                  disabled={isPending || isSuccess}
-                  onClick={handleMint}
-                  className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
-                                ${
-                                  isSuccess
-                                    ? 'bg-green-500'
-                                    : 'bg-[#0052FF] hover:bg-blue-700'
-                                }`}
-                >
-                  {isPending ? (
-                    <span className="animate-pulse">Processing...</span>
-                  ) : isSuccess ? (
-                    <span>MINTED SUCCESSFULLY! 🎉</span>
-                  ) : (
-                    <>
-                      <span>MINT BASEPRINT</span>
-                      <span className="bg-white/20 text-xs px-2 py-1 rounded font-medium">
-                        0.0002 ETH
-                      </span>
-                    </>
-                  )}
-                </button>
+                {/* --- MINT & SHARE BUTTONS --- */}
+                
+                {/* Eğer işlem başarılıysa PAYLAŞ butonu göster */}
+                {isSuccess ? (
+                    <button
+                        onClick={handleShare}
+                        className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl bg-purple-600 hover:bg-purple-700 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                        {/* Farcaster Share Icon (Basit SVG) */}
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm5 7h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>
+                        </svg>
+                        SHARE ON WARPCAST
+                    </button>
+                ) : (
+                    /* Başarılı değilse MINT butonu göster */
+                    <button
+                        disabled={isPending}
+                        onClick={handleMint}
+                        className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
+                                    ${'bg-[#0052FF] hover:bg-blue-700'}`}
+                        >
+                        {isPending ? (
+                            <span className="animate-pulse">Processing...</span>
+                        ) : (
+                            <>
+                            <span>MINT BASEPRINT</span>
+                            <span className="bg-white/20 text-xs px-2 py-1 rounded font-medium">
+                                0.0002 ETH
+                            </span>
+                            </>
+                        )}
+                    </button>
+                )}
 
                 {mintError && (
                   <div className="bg-red-50 text-red-500 text-[10px] text-center p-2 rounded-lg border border-red-100">
