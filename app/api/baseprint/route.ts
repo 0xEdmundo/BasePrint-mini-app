@@ -26,7 +26,6 @@ function computeStats(txs: EtherscanTx[]) {
     };
   }
 
-  // timeStamp -> Date
   const dates = txs
     .map((tx) => new Date(parseInt(tx.timeStamp, 10) * 1000))
     .sort((a, b) => a.getTime() - b.getTime());
@@ -40,14 +39,14 @@ function computeStats(txs: EtherscanTx[]) {
     Math.round((now.getTime() - first.getTime()) / msPerDay)
   );
 
-  // aktif gün sayısı
+  // aktif gün sayısı (unique gün)
   const daySet = new Set(
     dates.map((d) => d.toISOString().split("T")[0]) // YYYY-MM-DD
   );
   const daysActive = daySet.size;
 
-  // en uzun streak
-  const sortedDays = Array.from(daySet).sort(); // string olarak sıralayınca tarih sırası oluyor
+  // longest streak
+  const sortedDays = Array.from(daySet).sort();
   let longestStreak = 1;
   let currentStreak = 1;
 
@@ -66,8 +65,7 @@ function computeStats(txs: EtherscanTx[]) {
     }
   }
 
-  // basit heuristikler
-  const deployed = txs.filter((tx) => tx.contractAddress).length;
+  const deployed = txs.filter((tx) => !!tx.contractAddress).length;
 
   const bridge = txs.filter((tx) =>
     (tx.functionName || "")
@@ -139,14 +137,13 @@ export async function GET(request: NextRequest) {
 
     const neynarJson: any = await neynarRes.json();
 
-    // Dokümana göre cevap `users: User[]`, ama farklı formatları da tolere edelim
     const usersArray: any[] =
-      Array.isArray((neynarJson as any).users)
-        ? (neynarJson as any).users
-        : Array.isArray((neynarJson as any).result?.users)
-        ? (neynarJson as any).result.users
-        : (neynarJson as any).result?.user
-        ? [(neynarJson as any).result.user]
+      Array.isArray(neynarJson.users)
+        ? neynarJson.users
+        : Array.isArray(neynarJson.result?.users)
+        ? neynarJson.result.users
+        : neynarJson.result?.user
+        ? [neynarJson.result.user]
         : [];
 
     const user = usersArray[0];
@@ -158,31 +155,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // pfp alanını sadece ?? ile zincirledim (|| yok artık)
+    const pfp =
+      (user as any).pfp_url ??
+      (user as any).pfp?.url ??
+      (user as any).pfp?.verified ??
+      "";
+
+    const isVerified =
+      (Array.isArray(user.verifications) &&
+        user.verifications.length > 0) ||
+      (user.verified_addresses &&
+        Array.isArray(user.verified_addresses.eth_addresses) &&
+        user.verified_addresses.eth_addresses.length > 0) ||
+      false;
+
+    const score =
+      typeof user.score === "number"
+        ? user.score
+        : typeof user.neynar_user_score === "number"
+        ? user.neynar_user_score
+        : typeof user.relevance_score === "number"
+        ? user.relevance_score
+        : 0;
+
     const farcasterData = {
       fid: user.fid,
       username: user.username,
-      pfp:
-        user.pfp_url ||
-        user.pfp?.url ||
-        user.pfp?.verified ??
-        "",
-      // Verified: hem verifications hem de verified_addresses üzerinden bak
-      isVerified:
-        (Array.isArray(user.verifications) &&
-          user.verifications.length > 0) ||
-        (user.verified_addresses &&
-          Array.isArray(user.verified_addresses.eth_addresses) &&
-          user.verified_addresses.eth_addresses.length > 0) ||
-        false,
-      // Neynar score field'ı ortamına göre değişebiliyor, elde ne varsa deniyoruz
-      score:
-        typeof user.score === "number"
-          ? user.score
-          : typeof user.neynar_user_score === "number"
-          ? user.neynar_user_score
-          : typeof user.relevance_score === "number"
-          ? user.relevance_score
-          : 0,
+      pfp,
+      isVerified,
+      score,
     };
 
     // ---------- ETHERSCAN (BASE) → cüzdan tx taraması ----------
@@ -194,7 +196,7 @@ export async function GET(request: NextRequest) {
       defi: 0,
       deployed: 0,
       longestStreak: 0,
-      isVerified: farcasterData.isVerified,
+      isVerified,
     };
 
     if (ETHERSCAN_API_KEY) {
@@ -218,7 +220,7 @@ export async function GET(request: NextRequest) {
         const txJson: any = await txRes.json();
         if (txJson.status === "1" && Array.isArray(txJson.result)) {
           const baseStats = computeStats(txJson.result as EtherscanTx[]);
-          stats = { ...baseStats, isVerified: farcasterData.isVerified };
+          stats = { ...baseStats, isVerified };
         } else {
           console.warn("Etherscan returned no txs:", txJson.message);
         }
