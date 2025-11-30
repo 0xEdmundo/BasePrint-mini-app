@@ -1,4 +1,3 @@
-// app/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -9,16 +8,20 @@ import {
   useWriteContract,
   useEnsName,
   type BaseError,
+  WagmiProvider,
+  createConfig,
+  http,
 } from "wagmi";
-import { createConfig, http, WagmiProvider } from "wagmi";
 import { base } from "wagmi/chains";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { injected, coinbaseWallet } from "wagmi/connectors";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { parseEther } from "viem";
 import sdk from "@farcaster/frame-sdk";
 
-// --- 1. CONFIG & CONSTANTS ---
-const CONTRACT_ADDRESS = "0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2";
+// --- CONFIG ---
+
+const CONTRACT_ADDRESS =
+  "0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2" as `0x${string}`;
 const BASEPRINT_MINIAPP_URL =
   "https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint";
 
@@ -33,7 +36,8 @@ const config = createConfig({
   ],
 });
 
-// --- ICONS (hiç dokunmadım) ---
+// --- ICONS (aynen bıraktım) ---
+
 const AppLogo = ({ className }: { className?: string }) => (
   <svg
     viewBox="0 0 100 100"
@@ -64,7 +68,8 @@ const FarcasterIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// --- Farcaster Share Link (BasePrint ID + miniapp embed) ---
+// --- Farcaster cast link ---
+
 const createFarcasterCastUrl = (username: string, isVerified: boolean) => {
   const verificationStatus = isVerified ? "✅ Verified" : "🔍 Unverified";
 
@@ -89,9 +94,34 @@ ${BASEPRINT_MINIAPP_URL}
 };
 
 // --- MAIN CONTENT ---
+
+type FarcasterData = {
+  username: string;
+  pfp: string;
+  score: number;
+  fid: number;
+  since: string;
+} | null;
+
+type Stats = {
+  txCount: number;
+  daysActive: number;
+  longestStreak: number;
+  bridge: number;
+  defi: number;
+  deployed: number;
+  walletAge: number;
+  isVerified: boolean;
+} | null;
+
 function BasePrintContent() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
+  const {
+    connect,
+    connectors,
+    error: connectError,
+    isPending: isConnectPending,
+  } = useConnect();
   const { disconnect } = useDisconnect();
   const {
     writeContract,
@@ -103,10 +133,10 @@ function BasePrintContent() {
 
   const [loading, setLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const [userData, setUserData] = useState<any>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [userData, setUserData] = useState<FarcasterData>(null);
+  const [stats, setStats] = useState<Stats>(null);
 
-  // --- FARCASTER SDK INIT & SPLASH ---
+  // Farcaster SDK → splash kaldır
   useEffect(() => {
     const init = async () => {
       try {
@@ -114,13 +144,13 @@ function BasePrintContent() {
       } catch (e) {
         console.log("Farcaster SDK Error:", e);
       } finally {
-        setTimeout(() => setShowSplash(false), 2000);
+        setTimeout(() => setShowSplash(false), 1500);
       }
     };
     init();
   }, []);
 
-  // --- Data Fetch (artık kendi endpoint'imizden) ---
+  // API'den verileri çek
   const fetchData = useCallback(async () => {
     if (!address) return;
     setLoading(true);
@@ -132,6 +162,7 @@ function BasePrintContent() {
         setLoading(false);
         return;
       }
+
       const json = await res.json();
       setUserData(json.farcasterData);
       setStats(json.stats);
@@ -143,8 +174,13 @@ function BasePrintContent() {
   }, [address]);
 
   useEffect(() => {
-    if (isConnected) fetchData();
-  }, [isConnected, address, fetchData]);
+    if (isConnected) {
+      fetchData();
+    } else {
+      setUserData(null);
+      setStats(null);
+    }
+  }, [isConnected, fetchData]);
 
   const handleMint = () => {
     if (!userData || !stats) return;
@@ -152,7 +188,7 @@ function BasePrintContent() {
     const dateStr = new Date().toISOString().split("T")[0];
 
     writeContract({
-      address: CONTRACT_ADDRESS as `0x${string}`,
+      address: CONTRACT_ADDRESS,
       abi: [
         {
           name: "mintIdentity",
@@ -213,13 +249,14 @@ function BasePrintContent() {
               BasePrint
             </span>
           </div>
-          {isConnected && (
+          {isConnected && address && (
             <div className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded-full text-gray-500">
-              {address?.slice(0, 6)}...{address?.slice(-4)}
+              {address.slice(0, 6)}...{address.slice(-4)}
             </div>
           )}
         </div>
 
+        {/* NOT CONNECTED */}
         {!isConnected ? (
           <div className="flex flex-col items-center justify-center h-[600px] bg-gradient-to-b from-blue-50 to-white">
             <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6">
@@ -228,25 +265,34 @@ function BasePrintContent() {
             <h2 className="text-2xl font-black text-slate-900 mb-2">
               Connect Identity
             </h2>
-            <p className="text-gray-500 text-sm text-center px-8 mb-8">
+            <p className="text-gray-500 text-sm text-center px-8 mb-4">
               Reveal your onchain reputation and Base activity.
             </p>
 
             <div className="w-full px-8">
               <button
                 onClick={() => {
-                  const preferredConnector =
+                  const preferred =
                     connectors.find((c) => c.id === "injected") ||
                     connectors[0];
-                  connect({ connector: preferredConnector });
+                  connect({ connector: preferred });
                 }}
+                disabled={isConnectPending}
                 className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
               >
-                Connect Wallet
+                {isConnectPending ? "Connecting..." : "Connect Wallet"}
               </button>
+
+              {connectError && (
+                <p className="text-[10px] text-red-500 text-center">
+                  {(connectError as BaseError).shortMessage ||
+                    (connectError as any).message}
+                </p>
+              )}
             </div>
           </div>
         ) : (
+          // CONNECTED
           <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
             {loading || !userData || !stats ? (
               <div className="flex flex-col items-center justify-center flex-1">
@@ -257,7 +303,7 @@ function BasePrintContent() {
               </div>
             ) : (
               <div className="space-y-4 animate-in slide-in-from-bottom-5 duration-500">
-                {/* GLASS CARD */}
+                {/* CARD */}
                 <div className="relative w-full aspect-[1.7/1] rounded-2xl overflow-hidden shadow-2xl group border border-white/20">
                   <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF] via-[#0042cc] to-[#002980]"></div>
                   <div className="absolute -right-10 -bottom-20 w-60 h-60 bg-cyan-400 opacity-20 rounded-full blur-3xl"></div>
@@ -321,9 +367,7 @@ function BasePrintContent() {
                       <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-green-300 to-green-500"
-                          style={{
-                            width: `${userData.score * 100}%`,
-                          }}
+                          style={{ width: `${userData.score * 100}%` }}
                         ></div>
                       </div>
                     </div>
@@ -402,28 +446,19 @@ function BasePrintContent() {
                   </div>
                 </div>
 
-                {/* MINT & SHARE BUTTONS */}
+                {/* MINT / SHARE */}
                 {isSuccess ? (
                   <button
                     onClick={handleShare}
                     className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl bg-purple-600 hover:bg-purple-700 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
                   >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm5 7h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" />
-                    </svg>
                     SHARE ON WARPCAST
                   </button>
                 ) : (
                   <button
                     disabled={isPending}
                     onClick={handleMint}
-                    className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700`}
+                    className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
                   >
                     {isPending ? (
                       <span className="animate-pulse">Processing...</span>
