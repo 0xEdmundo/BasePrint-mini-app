@@ -1,81 +1,71 @@
-import { getContract, encodeFunctionData, parseAbi, parseEther } from 'viem'; 
-// Normalde Next.js projesinde viem/ethers.js import edersiniz.
-// Bu simülasyonda, bu kütüphanelerin fonksiyonlarını doğrudan import edemeyeceğimiz için,
-// gerekli verileri manuel olarak oluşturacağız.
-// Gerçek bir uygulamada bu 3 import'u kullanmanız gerekir.
+import { encodeFunctionData, parseEther, getAddress } from 'viem'; 
+// Bu fonksiyonlar, Next.js ortamında viem kütüphanesinden içe aktarılır.
 
-// >>> LÜTFEN AŞAĞIDAKİ SABİTLERİ KENDİ NFT PROJENİZE GÖRE DOLDURUN <<<
-const BASE_NFT_CONTRACT_ADDRESS = "0xYourNFTContractAddressOnBase"; // Base üzerindeki kontrat adresiniz
-const MINT_COST_ETH = "0.001"; // NFT Mint maliyeti (ETH cinsinden)
-// Mint fonksiyonunuzun ismini ve beklediği argümanları doğru yazın.
-// Örnek: function mint(uint256 amount) veya function safeMint(address to)
+// >>> NFT PROJESİNE AİT SABİTLER <<<
+// BaseScan'de doğrulanmış kontrat adresi (Base Mainnet):
+const BASE_NFT_CONTRACT_ADDRESS = getAddress("0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2"); 
+const MINT_COST_ETH = "0.000777"; // Kontratın halka açık mint fiyatı
 const MINT_FUNCTION_NAME = "mint";
-const MINT_FUNCTION_ABI = [
-  // Kontratınızdaki mint fonksiyonunun ABI parçası
-  {
-    "inputs": [
-      {"internalType": "address", "name": "to", "type": "address"}
-    ],
+
+// Kontratın argüman almayan (varsayılan 1 NFT basan) ve ETH kabul eden mint() fonksiyonunun ABI parçası.
+// Eğer kontratınız farklı bir mint fonksiyonu kullanıyorsa (örneğin miktar alan), bu ABI'yı değiştirmeniz gerekir.
+const MINT_FUNCTION_ABI = [{
+    "inputs": [],
     "name": MINT_FUNCTION_NAME,
     "outputs": [],
-    "stateMutability": "payable", // Mint işlemi ETH gönderiyorsa 'payable' olmalı
+    "stateMutability": "payable", // ETH transferi olduğu için payable olmalı
     "type": "function"
-  }
-];
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+}];
 
+// Farcaster Frame'in Mint işlemi için ana API Route Handler'ı.
 export default async function handler(req, res) {
+    // Sadece POST isteklerine izin verilir.
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
     try {
-        // 1. Farcaster'dan gelen POST isteğinin gövdesini oku
+        // 1. Farcaster'dan gelen Frame POST verisini oku
         const frameData = req.body;
         
-        // 2. İşlemi yapacak kullanıcının cüzdan adresini (signer's address) Frame verisinden al
-        // Farcaster, işlemi imzalayacak olan kullanıcının cüzdan adresini (custody address) döndürür.
-        // `address` alanı, Frame'e yetki veren cüzdanın adresi olacaktır.
+        // 2. İşlemi imzalayacak olan kullanıcının cüzdan adresini al. 
+        // Bu adres, NFT'nin gönderileceği adrestir.
         const signerAddress = frameData.untrustedData.address;
         
         if (!signerAddress) {
-            throw new Error("Farcaster signer address is missing.");
+            throw new Error("Farcaster signer (user) address is missing in frame data.");
         }
 
-        // 3. İşlem verisini (Tx Data) oluşturma
-        
-        // Gerçek dünyada: Mint fonksiyonu için ABI'yı kullanarak 'data' alanını viem ile kodlamalısınız.
-        // Örnek Kodlama Mantığı (simülasyon):
-        /*
+        // 3. Kontrat fonksiyonu çağrısı için kodlanmış veriyi (data) oluştur.
+        // Argüman almayan mint() fonksiyonu için:
         const encodedData = encodeFunctionData({
-            abi: parseAbi(MINT_FUNCTION_ABI), // Veya sadece parseAbi(['function mint(address to)'])
+            abi: MINT_FUNCTION_ABI, 
             functionName: MINT_FUNCTION_NAME,
-            args: [signerAddress] // Mint fonksiyonu 'to' adresini (kullanıcının cüzdanı) bekliyor varsayıyoruz
+            args: [] 
         });
-        */
 
-        // Simülasyon: Mint fonksiyonu için kodlanmış veri
-        // Eğer mint fonksiyonunuz tek bir argüman (address to) alıyorsa:
-        const encodedData = `0xMOCK_ENCODED_DATA_FOR_${MINT_FUNCTION_NAME}`; 
-
-        // 4. İşlem (Transaction) JSON verisini oluşturma
+        // 4. İşlem (Transaction) JSON verisini oluştur.
         const txData = {
-            chainId: "eip155:8453", // Base Mainnet'in zincir ID'si (Gerekli format: eip155:<id>)
+            // Base Mainnet zincir ID'si
+            chainId: "eip155:8453", 
+            // Cüzdana gönderilecek işlem metodu
             method: "eth_sendTransaction",
             params: {
-                abi: MINT_FUNCTION_ABI, // Cüzdanın işlemi anlaması için ABI
+                abi: MINT_FUNCTION_ABI, // İşlem detaylarını cüzdana gösterir
                 to: BASE_NFT_CONTRACT_ADDRESS, // Hedef kontrat adresi
-                data: encodedData, // Mint fonksiyonu için kodlanmış veri
-                value: MINT_VALUE_IN_WEI, // Örnek: 0.001 ETH
+                data: encodedData, // Hangi fonksiyonun çağrılacağı bilgisi (mint())
+                // Mint maliyetini (0.000777 ETH) WEI birimine çevirir.
+                value: parseEther(MINT_COST_ETH).toString(10), 
             }
         };
 
-        // 5. Frame, bu JSON yanıtını alır ve işlemi cüzdan uygulamasına (Warpcast) gönderir.
+        // 5. Hazırlanan JSON verisini Warpcast'e (Frame'e) yanıt olarak gönder.
+        // Warpcast bu veriyi kullanarak kullanıcının cüzdanını açar ve işlemi onaylamasını ister.
         res.status(200).json(txData);
 
     } catch (error) {
         console.error("TX Data Generation Error:", error);
         // Hata durumunda, Warpcast'e anlaşılır bir hata mesajı döndür.
-        res.status(500).json({ error: "Failed to generate transaction data. Check logs." });
+        res.status(500).json({ error: "Failed to generate transaction data. Please check the contract setup. Error: " + error.message });
     }
 }
