@@ -1,25 +1,25 @@
-"use client";
+import "./globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { Providers } from "./providers";
 
-import React from "react";
-import { MiniKitProvider } from "@coinbase/minikit-react";
+const inter = Inter({ subsets: ["latin"] });
 
-const projectId = process.env.NEXT_PUBLIC_MINIKIT_PROJECT_ID!;
-const appUrl =
-  process.env.NEXT_PUBLIC_BASE_URL || "https://baseprint.vercel.app";
+export const metadata: Metadata = {
+  title: "BasePrint",
+  description: "BasePrint mini-app",
+};
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  if (!projectId) {
-    console.warn("Missing NEXT_PUBLIC_MINIKIT_PROJECT_ID env variable");
-  }
-
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <MiniKitProvider
-      config={{
-        projectId,
-        appUrl,
-      }}
-    >
-      {children}
-    </MiniKitProvider>
+    <html lang="en">
+      <body className={inter.className}>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
   );
 }
