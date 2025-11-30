@@ -99,7 +99,7 @@ function BasePrintContent() {
   const { writeContract, isPending, isSuccess, error: mintError } =
     useWriteContract();
 
-  useEnsName({ address, chainId: base.id }); // şimdilik sadece resolve, UI'da kullanmıyoruz
+  useEnsName({ address, chainId: base.id });
 
   const [loading, setLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -132,7 +132,10 @@ function BasePrintContent() {
 
   // FETCH DATA -----------------------
   const fetchData = useCallback(async () => {
-    if (!address) return;
+    if (!address) {
+      return;
+    }
+
     setLoading(true);
     setProfileError(null);
 
@@ -150,9 +153,9 @@ function BasePrintContent() {
         }
 
         console.error("BasePrint API error:", res.status);
-        setProfileError("Unexpected server error. Please try again.");
         setUserData(null);
         setStats(null);
+        setProfileError("Unexpected server error. Please try again.");
         return;
       }
 
@@ -163,9 +166,9 @@ function BasePrintContent() {
       setStats(json.stats);
     } catch (e) {
       console.error("BasePrint API network error:", e);
-      setProfileError("Network error. Please try again.");
       setUserData(null);
       setStats(null);
+      setProfileError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -222,6 +225,7 @@ function BasePrintContent() {
 
   // RENDER -----------------------
 
+  // 🔵 Eski mavi logolu splash
   if (showSplash) {
     return (
       <div className="fixed inset-0 bg-[#0052FF] flex flex-col items-center justify-center z-50 text-white">
@@ -269,7 +273,8 @@ function BasePrintContent() {
         ) : (
           // --------------------- CONNECTED ---------------------
           <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
-            {loading || (!userData && !profileError) || !stats ? (
+            {loading ? (
+              // Sadece loading TRUE iken spinner
               <div className="flex flex-col items-center justify-center flex-1">
                 <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-xs text-slate-400 font-mono">
@@ -277,6 +282,7 @@ function BasePrintContent() {
                 </p>
               </div>
             ) : profileError ? (
+              // API hata / profil yok
               <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
                 <p className="text-red-500 font-semibold mb-2">
                   {profileError}
@@ -286,6 +292,19 @@ function BasePrintContent() {
                   className="mt-2 bg-[#0052FF] text-white px-6 py-3 rounded-xl font-bold text-sm"
                 >
                   Retry
+                </button>
+              </div>
+            ) : !userData || !stats ? (
+              // Güvenlik için fallback (hiç veri yok ama loading de değilse)
+              <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
+                <p className="text-slate-500 text-sm mb-2">
+                  No data received yet.
+                </p>
+                <button
+                  onClick={fetchData}
+                  className="mt-2 bg-[#0052FF] text-white px-6 py-3 rounded-xl font-bold text-sm"
+                >
+                  Refresh
                 </button>
               </div>
             ) : (
