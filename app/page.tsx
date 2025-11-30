@@ -14,12 +14,14 @@ import { base } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { injected, coinbaseWallet } from 'wagmi/connectors';
 import { parseEther } from 'viem';
+// Farcaster SDK'sını ekliyoruz (Eğer yüklü değilse npm install @farcaster/frame-sdk yapın)
+import sdk from '@farcaster/frame-sdk';
 
 // --- 1. CONFIG & API KEYS ---
 const NEYNAR_API_KEY = process.env.NEXT_PUBLIC_NEYNAR_API_KEY || '';
 const ETHERSCAN_API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || '';
 const CONTRACT_ADDRESS = '0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2';
-const BASE_APP_URL = "https://baseprint.vercel.app"; // Proje URL'niz
+const BASE_APP_URL = "https://baseprint.vercel.app"; 
 
 // --- 2. WAGMI SETUP ---
 const queryClient = new QueryClient();
@@ -28,32 +30,18 @@ const config = createConfig({
   chains: [base],
   transports: { [base.id]: http() },
   connectors: [
+    // Farcaster içinde injected (Warpcast wallet) daha öncelikli olabilir
+    injected(), 
     coinbaseWallet({ appName: 'BasePrint', preference: 'smartWalletOnly' }),
-    injected(),
   ],
 });
 
 // --- 3. ICONS ---
 const AppLogo = ({ className }: { className?: string }) => (
-  <svg
-    viewBox="0 0 100 100"
-    className={className}
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="50" cy="50" r="50" fill="#0052FF" />
-    <path
-      d="M50 20C33.4315 20 20 33.4315 20 50C20 66.5685 33.4315 80 50 80C66.5685 80 80 66.5685 80 50"
-      stroke="white"
-      strokeWidth="5"
-      strokeLinecap="round"
-    />
-    <path
-      d="M50 35C41.7157 35 35 41.7157 35 50C35 58.2843 41.7157 65 50 65"
-      stroke="white"
-      strokeWidth="5"
-      strokeLinecap="round"
-    />
+    <path d="M50 20C33.4315 20 20 33.4315 20 50C20 66.5685 33.4315 80 50 80C66.5685 80 80 66.5685 80 50" stroke="white" strokeWidth="5" strokeLinecap="round" />
+    <path d="M50 35C41.7157 35 35 41.7157 35 50C35 58.2843 41.7157 65 50 65" stroke="white" strokeWidth="5" strokeLinecap="round" />
     <circle cx="50" cy="50" r="4" fill="white" />
   </svg>
 );
@@ -133,13 +121,28 @@ function BasePrintContent() {
   const [showSplash, setShowSplash] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
-  
-  // YENİ: Mint edilen Token ID'yi simüle etmek için state (Gerçek uygulamada Event dinlenmeli)
-  const [mintedTokenId, setMintedTokenId] = useState<string>("");
+  const [context, setContext] = useState<any>(null); // Farcaster Context
 
+  // --- FARCASTER SDK INIT & SPLASH ---
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2000);
-    return () => clearTimeout(timer);
+    const init = async () => {
+        try {
+            // Farcaster SDK'ya hazır olduğumuzu bildir
+            // Bu, uygulamanın Farcaster içinde açıldığında yükleme ekranını kaldırmasını sağlar
+            await sdk.actions.ready();
+            
+            // Context'i al (Opsiyonel, kullanıcı verisi için)
+            /* const ctx = await sdk.context;
+            setContext(ctx); 
+            */
+        } catch (e) {
+            console.log("Farcaster SDK Error:", e);
+        } finally {
+            // Her durumda Splash'ı kaldır (Fallback)
+            setTimeout(() => setShowSplash(false), 2000);
+        }
+    };
+    init();
   }, []);
 
   const fetchData = useCallback(async () => {
