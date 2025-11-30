@@ -86,26 +86,55 @@ const analyzeTransactions = (txs: any[]) => {
   let bridge = 0;
   let deployed = 0;
   let interactions = 0;
+
   txs.forEach((tx: any) => {
+    // Skip failed transactions
+    if (tx.isError === '1') return;
+
+    // Smart Contract Deployment
     if (!tx.to || tx.to === '') {
       deployed++;
       return;
     }
-    const method =
-      tx.methodId ||
-      (tx.input && tx.input.length >= 10 ? tx.input.substring(0, 10) : null);
-    if (method && method !== '0x') {
-      interactions++;
+
+    // Check for method info
+    const functionName = tx.functionName ? tx.functionName.toLowerCase() : '';
+    const methodId = tx.methodId || (tx.input && tx.input.length >= 10 ? tx.input.substring(0, 10) : null);
+
+    // Bridge Detection
+    if (
+      functionName.includes('deposit') ||
+      functionName.includes('withdraw') ||
+      functionName.includes('bridge')
+    ) {
+      bridge++;
+    } else if (
+      // Common Bridge Method IDs (examples)
+      ['0x32b7006d', '0x49228978', '0x5cae9c06', '0x9a2ac9d9'].includes(methodId)
+    ) {
+      bridge++;
+    }
+
+    // DeFi / Interaction Detection
+    // Exclude simple transfers (0x) and standard token transfers (0xa9059cbb)
+    if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') {
       if (
-        ['0x32b7006d', '0x49228978', '0x5cae9c06', '0x9a2ac9d9'].includes(
-          method
-        )
+        functionName.includes('supply') ||
+        functionName.includes('borrow') ||
+        functionName.includes('stake') ||
+        functionName.includes('swap') ||
+        functionName.includes('vote') ||
+        functionName.includes('propose')
       ) {
-        bridge++;
+        interactions++;
+      } else if (!functionName && methodId) {
+        // If no function name, assume complex interaction if not transfer
+        interactions++;
       }
     }
   });
-  const defi = Math.max(0, Math.floor((interactions - bridge) * 0.4));
+
+  const defi = interactions;
   return { bridge, defi, deployed };
 };
 
@@ -132,14 +161,10 @@ export default function Home() {
   // Initialize Farcaster SDK and handle splash
   useEffect(() => {
     const init = async () => {
-      // sdk.actions.ready() is called in providers.tsx, but we can also check context here
       const context = await sdk.context;
       if (context?.user) {
         console.log('Farcaster Context User:', context.user);
-        // We could pre-fill user data here if we wanted
       }
-
-      // Hide splash after a delay or when ready
       setTimeout(() => setShowSplash(false), 1500);
     };
     init();
@@ -157,6 +182,7 @@ export default function Home() {
         score: 0.5,
         fid: 0,
         since: '2024',
+        isVerified: false, // Power Badge
       };
 
       if (NEYNAR_API_KEY) {
@@ -172,7 +198,18 @@ export default function Home() {
           );
 
           const neynarJson = await neynarRes.json();
-          const user = neynarJson?.users?.[0];
+          let user = null;
+          if (neynarJson[address.toLowerCase()]) {
+            user = neynarJson[address.toLowerCase()][0];
+          } else if (neynarJson.users) {
+            user = neynarJson.users[0];
+          } else if (Array.isArray(neynarJson)) {
+            user = neynarJson[0];
+          }
+
+          if (!user && neynarJson[address]) {
+            user = neynarJson[address][0];
+          }
 
           if (user) {
             farcasterData = {
@@ -183,6 +220,7 @@ export default function Home() {
               since: user.created_at
                 ? new Date(user.created_at).getFullYear().toString()
                 : '2024',
+              isVerified: user.power_badge ?? false,
             };
           }
         } catch (e) {
@@ -203,8 +241,9 @@ export default function Home() {
           const balRes = await fetch(balUrl);
           const balJson = await balRes.json();
 
-          if (Array.isArray(txJson.result) && txJson.result.length > 0) {
+          if (Array.isArray(txJson.result)) {
             const txs = txJson.result;
+
             const uniqueDates = Array.from(
               new Set(
                 txs.map((tx: any) =>
@@ -215,7 +254,8 @@ export default function Home() {
 
             const analysis = analyzeTransactions(txs);
             const longestStreak = calculateStreak(uniqueDates);
-            const firstTxTimestamp = parseInt(txs[0]?.timeStamp || '0', 10);
+
+            const firstTxTimestamp = txs.length > 0 ? parseInt(txs[0].timeStamp, 10) : 0;
             const walletAgeDays = calculateWalletAgeDays(firstTxTimestamp);
 
             const balanceRaw =
@@ -387,8 +427,8 @@ export default function Home() {
                     <div className="flex justify-between items-start">
                       <AppLogo className="w-8 h-8 drop-shadow-sm" />
 
-                      {/* Verified Badge (Mavi Tikli Rozet) */}
-                      {stats.isVerified ? (
+                      {/* Verified Badge (Mavi Tikli Rozet) - Farcaster Power Badge */}
+                      {userData.isVerified ? (
                         <div className="flex items-center gap-1.5 bg-blue-500/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-blue-400">
                           <svg
                             className="w-3.5 h-3.5 text-white"
