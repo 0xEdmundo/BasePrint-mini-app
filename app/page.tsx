@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -154,41 +153,72 @@ function BasePrintContent() {
     setLoading(true);
 
     try {
-      // A. NEYNAR
+      // ---------- A. NEYNAR (FARCASTER USER) ----------
       let farcasterData = {
         username: 'Explorer',
         pfp: '',
-        score: 0,
+        score: 0.5,
         fid: 0,
         since: '2024',
       };
+
       if (NEYNAR_API_KEY) {
         try {
-          const neynarRes = await fetch(
-            `https://api.neynar.com/v2/farcaster/user/bulk?fids=&viewer_fid=3&addresses=${address}`,
+          // 1) Yeni endpoint: bulk-by-address
+          let user: any | undefined;
+
+          const res1 = await fetch(
+            `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${address}`,
             {
-              headers: { api_key: NEYNAR_API_KEY, accept: 'application/json' },
+              headers: {
+                api_key: NEYNAR_API_KEY,
+                accept: 'application/json',
+              },
             }
           );
-          const neynarJson = await neynarRes.json();
-          if (neynarJson.users && neynarJson.users[0]) {
-            const u = neynarJson.users[0];
+          const json1 = await res1.json();
+          if (json1?.users && json1.users.length > 0) {
+            user = json1.users[0];
+          }
+
+          // 2) Yedek: eski bulk endpoint (adres paramı)
+          if (!user) {
+            const res2 = await fetch(
+              `https://api.neynar.com/v2/farcaster/user/bulk?addresses=${address}&viewer_fid=3`,
+              {
+                headers: {
+                  api_key: NEYNAR_API_KEY,
+                  accept: 'application/json',
+                },
+              }
+            );
+            const json2 = await res2.json();
+            if (json2?.users && json2.users.length > 0) {
+              user = json2.users[0];
+            }
+          }
+
+          if (user) {
             farcasterData = {
-              username: u.username,
-              pfp: u.pfp_url,
-              score: u.score || 0.5,
-              fid: u.fid,
-              since: u.created_at
-                ? new Date(u.created_at).getFullYear().toString()
+              username: user.username,
+              pfp: user.pfp_url,
+              score: user.score ?? 0.5,
+              fid: user.fid,
+              since: user.created_at
+                ? new Date(user.created_at).getFullYear().toString()
                 : '2024',
             };
+          } else {
+            console.warn('No Farcaster profile for address', address);
           }
         } catch (e) {
-          console.log('Neynar Error', e);
+          console.error('Neynar Error', e);
         }
       }
 
-      // B. ETHERSCAN V2
+      // ---------- B. ETHERSCAN (ONCHAIN STATS) ----------
+      let statsData: any = null;
+
       if (ETHERSCAN_API_KEY) {
         try {
           const txUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
@@ -199,8 +229,9 @@ function BasePrintContent() {
           const balRes = await fetch(balUrl);
           const balJson = await balRes.json();
 
-          if (txJson.result && Array.isArray(txJson.result)) {
+          if (Array.isArray(txJson.result) && txJson.result.length > 0) {
             const txs = txJson.result;
+
             const uniqueDates = Array.from(
               new Set(
                 txs.map((tx: any) =>
@@ -211,30 +242,53 @@ function BasePrintContent() {
 
             const analysis = analyzeTransactions(txs);
             const longestStreak = calculateStreak(uniqueDates);
-            const firstTxTimestamp = parseInt(txs[0]?.timeStamp || 0);
+            const firstTxTimestamp = parseInt(txs[0]?.timeStamp || '0', 10);
             const walletAgeDays = calculateWalletAgeDays(firstTxTimestamp);
 
-            // Coinbase Verified Logic (Simulated for Demo)
-            const isVerified = txs.length > 5 && parseInt(balJson.result) > 0;
+            const balanceRaw =
+              typeof balJson.result === 'string'
+                ? parseInt(balJson.result || '0', 10)
+                : 0;
 
-            setStats({
+            const isVerified = txs.length > 5 && balanceRaw > 0;
+
+            statsData = {
               txCount: txs.length,
               daysActive: uniqueDates.length,
-              longestStreak: longestStreak,
+              longestStreak,
               bridge: analysis.bridge,
               defi: analysis.defi,
               deployed: analysis.deployed,
               walletAge: walletAgeDays,
-              isVerified: isVerified,
-            });
+              isVerified,
+            };
+          } else {
+            console.warn('No tx result from Etherscan', txJson);
           }
         } catch (e) {
-          console.log('Etherscan Error', e);
+          console.error('Etherscan Error', e);
         }
       }
+
+      // Eğer etherscan patlarsa yine de boş data ile kartı göster
+      setStats(
+        statsData || {
+          txCount: 0,
+          daysActive: 0,
+          longestStreak: 0,
+          bridge: 0,
+          defi: 0,
+          deployed: 0,
+          walletAge: 0,
+          isVerified: false,
+        }
+      );
+
       setUserData(farcasterData);
     } catch (error) {
-      console.error(error);
+      console.error('BasePrint fetchData error', error);
+      setUserData(null);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -250,7 +304,7 @@ function BasePrintContent() {
     const dateStr = new Date().toISOString().split('T')[0];
 
     writeContract({
-      address: CONTRACT_ADDRESS,
+      address: CONTRACT_ADDRESS as `0x${string}`,
       abi: [
         {
           name: 'mintIdentity',
@@ -536,7 +590,8 @@ function BasePrintContent() {
 
                 {mintError && (
                   <div className="bg-red-50 text-red-500 text-[10px] text-center p-2 rounded-lg border border-red-100">
-                    {(mintError as BaseError).shortMessage || mintError.message}
+                    {(mintError as BaseError).shortMessage ||
+                      (mintError as any).message}
                   </div>
                 )}
               </div>
