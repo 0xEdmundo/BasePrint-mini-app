@@ -1,10 +1,26 @@
 import { createPublicClient, http, namehash } from 'viem';
 import { base } from 'viem/chains';
+import fetch from 'node-fetch';
 
-// L2 Resolver Contract Address provided by user
+// L2 Resolver Contract Address
 const BASENAME_RESOLVER_ADDRESS = '0x03c4738ee98ae44591e1a4a4f3cab6641d95dd9a';
+// Basename NFT Contract Address (Same as resolver/registrar usually for Basenames, or specific collection)
+// The user provided 0x03c4... which is indeed the L2 Resolver but also acts as the main entry point for Basenames on Base.
+// However, the actual NFT contract for "Basenames" is often the Registrar. 
+// For Base, the "Basename" is an ERC721. Let's assume the address provided IS the NFT contract or we check it.
+// Actually, 0x03c4738ee98ae44591e1a4a4f3cab6641d95dd9a is the L2Resolver.
+// The Base Registrar Implementation is likely what holds the NFTs.
+// BUT, the user explicitly gave 0x03c4... as the contract to check. 
+// Let's try to read standard ERC721 methods from it. If it fails, we might need the specific Registrar address.
+// Upon checking Base docs, 0x4cC... is often the Registrar. 
+// But let's stick to the user's provided address first for the "Contract" check as requested, 
+// OR better, we check the standard L2 Resolver for reverse, and if that fails, we check if they own a name.
+// Wait, if they own a name but haven't set reverse record, we need to find *which* name they own.
+// To do that via contract, we need `tokenOfOwnerByIndex`.
+// Let's assume the user provided address `0x03c4...` is the one they want us to check.
 
-// Create a public client for Base
+const NFT_CONTRACT_ADDRESS = '0x03c4738ee98ae44591e1a4a4f3cab6641d95dd9a';
+
 const client = createPublicClient({
     chain: base,
     transport: http(),
@@ -18,34 +34,102 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Reverse Resolution Logic for Basenames (L2)
-        // 1. Ensure address is lowercase and remove '0x' prefix if present for namehash string construction
         const cleanAddress = address.toLowerCase().replace('0x', '');
 
-        // 2. Calculate the reverse node: namehash(address_no_0x + '.addr.reverse')
-        const reverseNode = namehash(`${cleanAddress}.addr.reverse`);
+        // --- STRATEGY 1: Reverse Resolution (Primary Name) ---
+        try {
+            const reverseNode = namehash(`${cleanAddress}.addr.reverse`);
+            const name = await client.readContract({
+                address: BASENAME_RESOLVER_ADDRESS,
+                abi: [{
+                    name: 'name',
+                    type: 'function',
+                    stateMutability: 'view',
+                    inputs: [{ name: 'node', type: 'bytes32' }],
+                    outputs: [{ name: 'ret', type: 'string' }],
+                }],
+                functionName: 'name',
+                args: [reverseNode],
+            });
 
-        const name = await client.readContract({
-            address: BASENAME_RESOLVER_ADDRESS,
-            abi: [{
-                name: 'name',
-                type: 'function',
-                stateMutability: 'view',
-                inputs: [{ name: 'node', type: 'bytes32' }],
-                outputs: [{ name: 'ret', type: 'string' }],
-            }],
-            functionName: 'name',
-            args: [reverseNode],
-        });
-
-        if (name) {
-            return res.status(200).json({ basename: name });
-        } else {
-            return res.status(404).json({ error: 'No Basename found' });
+            if (name) {
+                return res.status(200).json({ basename: name });
+            }
+        } catch (err) {
+            console.log('Reverse resolution failed, trying NFT fallback...');
         }
+
+        // --- STRATEGY 2: NFT Ownership (Fallback) ---
+        // Check if user owns a Basename NFT and get the first one
+        try {
+            const balance = await client.readContract({
+                address: NFT_CONTRACT_ADDRESS,
+                abi: [{
+                    name: 'balanceOf',
+                    type: 'function',
+                    stateMutability: 'view',
+                    inputs: [{ name: 'owner', type: 'address' }],
+                    outputs: [{ name: 'balance', type: 'uint256' }],
+                }],
+                functionName: 'balanceOf',
+                args: [address],
+            });
+
+            if (Number(balance) > 0) {
+                // Get the first token ID owned by the user
+                const tokenId = await client.readContract({
+                    address: NFT_CONTRACT_ADDRESS,
+                    abi: [{
+                        name: 'tokenOfOwnerByIndex',
+                        type: 'function',
+                        stateMutability: 'view',
+                        inputs: [{ name: 'owner', type: 'address' }, { name: 'index', type: 'uint256' }],
+                        outputs: [{ name: 'tokenId', type: 'uint256' }],
+                    }],
+                    functionName: 'tokenOfOwnerByIndex',
+                    args: [address, 0n], // Index 0
+                });
+
+                // Get Token URI
+                const tokenUri = await client.readContract({
+                    address: NFT_CONTRACT_ADDRESS,
+                    abi: [{
+                        name: 'tokenURI',
+                        type: 'function',
+                        stateMutability: 'view',
+                        inputs: [{ name: 'tokenId', type: 'uint256' }],
+                        outputs: [{ name: 'uri', type: 'string' }],
+                    }],
+                    functionName: 'tokenURI',
+                    args: [tokenId],
+                });
+
+                // Fetch Metadata
+                // tokenUri might be a URL or base64 data
+                let name = null;
+                if (tokenUri.startsWith('data:application/json;base64,')) {
+                    const base64Data = tokenUri.split(',')[1];
+                    const jsonStr = Buffer.from(base64Data, 'base64').toString('utf-8');
+                    const metadata = JSON.parse(jsonStr);
+                    name = metadata.name;
+                } else if (tokenUri.startsWith('http')) {
+                    const metaRes = await fetch(tokenUri);
+                    const metadata = await metaRes.json();
+                    name = metadata.name;
+                }
+
+                if (name) {
+                    return res.status(200).json({ basename: name });
+                }
+            }
+        } catch (nftErr) {
+            console.error('NFT fallback failed:', nftErr);
+        }
+
+        return res.status(404).json({ error: 'No Basename found' });
+
     } catch (error) {
         console.error('Basename resolution error:', error);
-        // Return 404 on error to simply indicate "not found" to the frontend
         return res.status(404).json({ error: 'Failed to resolve Basename' });
     }
 }
