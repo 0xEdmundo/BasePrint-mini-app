@@ -98,16 +98,17 @@ export default async function handler(req, res) {
     const apiKey = process.env.ETHERSCAN_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
 
     if (!apiKey) {
-        console.error('BaseScan API key missing');
+        console.error('Etherscan API key missing');
         return res.status(500).json({ error: 'Server configuration error' });
     }
 
     try {
-        // USE BASESCAN API DIRECTLY
-        const baseUrl = 'https://api.basescan.org/api';
+        // USE ETHERSCAN V2 API (Targeting Base Chain ID 8453)
+        const baseUrl = 'https://api.etherscan.io/v2/api';
+        const chainId = '8453'; // Base Mainnet
 
         // 1. Fetch Transaction List
-        const txUrl = `${baseUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
+        const txUrl = `${baseUrl}?chainid=${chainId}&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
 
         // DEBUG LOGGING
         console.log(`Fetching TXs from: ${txUrl.replace(apiKey, 'HIDDEN_KEY')}`);
@@ -123,7 +124,7 @@ export default async function handler(req, res) {
         }
 
         // 2. Fetch Balance
-        const balUrl = `${baseUrl}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+        const balUrl = `${baseUrl}?chainid=${chainId}&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
         const balRes = await fetch(balUrl);
         const balJson = await balRes.json();
 
@@ -141,8 +142,8 @@ export default async function handler(req, res) {
         }
 
         if (!Array.isArray(txJson.result)) {
-            console.error('BaseScan Error:', txJson);
-            throw new Error(`BaseScan error: ${txJson.message || 'Unknown error'}`);
+            console.error('Etherscan V2 Error:', txJson);
+            throw new Error(`Etherscan V2 error: ${txJson.message || 'Unknown error'}`);
         }
 
         const txs = txJson.result;
@@ -178,7 +179,7 @@ export default async function handler(req, res) {
         return res.status(200).json(stats);
 
     } catch (error) {
-        console.error('BaseScan Handler Error:', error);
+        console.error('Etherscan Handler Error:', error);
         return res.status(500).json({ error: 'Failed to fetch onchain data' });
     }
 }
