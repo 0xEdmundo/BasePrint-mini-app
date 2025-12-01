@@ -19,10 +19,11 @@ export default async function handler(req, res) {
 
     try {
         // Reverse Resolution Logic for Basenames (L2)
-        // 1. Calculate the reverse node: namehash(address.slice(2) + '.addr.reverse')
-        // 2. Call the `name(bytes32)` function on the Resolver contract
+        // 1. Ensure address is lowercase and remove '0x' prefix if present for namehash string construction
+        const cleanAddress = address.toLowerCase().replace('0x', '');
 
-        const reverseNode = namehash(`${address.slice(2)}.addr.reverse`);
+        // 2. Calculate the reverse node: namehash(address_no_0x + '.addr.reverse')
+        const reverseNode = namehash(`${cleanAddress}.addr.reverse`);
 
         const name = await client.readContract({
             address: BASENAME_RESOLVER_ADDRESS,

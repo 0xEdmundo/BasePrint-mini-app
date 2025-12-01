@@ -57,23 +57,16 @@ const analyzeTransactions = (txs) => {
         if (toAddr === L2_STANDARD_BRIDGE) {
             bridge++;
         } else if (
-            // Fallback: Check for explicit bridge function names if not direct contract call
             functionName.includes('withdraw') ||
             functionName.includes('deposit') ||
             functionName.includes('finalizebridge')
         ) {
-            // Only count if it looks like a bridge tx (heuristic)
-            // But user asked to be sure about Base-Eth bridge. 
-            // Checking the L2StandardBridge address is the most reliable way for official bridge.
-            // We'll keep the strict check primarily, and maybe relax slightly for known portals if needed.
-            // For now, let's stick to the address check + explicit bridge methods on other contracts if they seem related.
             if (functionName.includes('bridge')) {
                 bridge++;
             }
         }
 
         // 2. DeFi / Interaction Detection (Lend/Borrow/Stake/Swap)
-        // Exclude simple transfers (0x) and standard token transfers (0xa9059cbb)
         if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') {
             if (
                 functionName.includes('supply') ||
@@ -82,12 +75,11 @@ const analyzeTransactions = (txs) => {
                 functionName.includes('swap') ||
                 functionName.includes('vote') ||
                 functionName.includes('propose') ||
-                functionName.includes('mint') || // Often DeFi related
-                functionName.includes('deposit') // Often DeFi related (liquidity)
+                functionName.includes('mint') ||
+                functionName.includes('deposit')
             ) {
                 interactions++;
             } else if (!functionName && methodId) {
-                // If no function name, assume complex interaction if not transfer
                 interactions++;
             }
         }
@@ -106,18 +98,21 @@ export default async function handler(req, res) {
     const apiKey = process.env.ETHERSCAN_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
 
     if (!apiKey) {
-        console.error('Etherscan API key missing');
+        console.error('BaseScan API key missing');
         return res.status(500).json({ error: 'Server configuration error' });
     }
 
     try {
+        // USE BASESCAN API DIRECTLY
+        const baseUrl = 'https://api.basescan.org/api';
+
         // 1. Fetch Transaction List
-        const txUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
+        const txUrl = `${baseUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
         const txRes = await fetch(txUrl);
         const txJson = await txRes.json();
 
         // 2. Fetch Balance
-        const balUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+        const balUrl = `${baseUrl}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
         const balRes = await fetch(balUrl);
         const balJson = await balRes.json();
 
@@ -135,7 +130,9 @@ export default async function handler(req, res) {
         }
 
         if (!Array.isArray(txJson.result)) {
-            throw new Error(`Invalid Etherscan response: ${JSON.stringify(txJson)}`);
+            // If BaseScan returns an error message in result
+            console.error('BaseScan Error:', txJson);
+            throw new Error(`BaseScan error: ${txJson.message || 'Unknown error'}`);
         }
 
         const txs = txJson.result;
@@ -171,7 +168,7 @@ export default async function handler(req, res) {
         return res.status(200).json(stats);
 
     } catch (error) {
-        console.error('Etherscan Handler Error:', error);
+        console.error('BaseScan Handler Error:', error);
         return res.status(500).json({ error: 'Failed to fetch onchain data' });
     }
 }
