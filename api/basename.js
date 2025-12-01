@@ -4,21 +4,7 @@ import fetch from 'node-fetch';
 
 // L2 Resolver Contract Address
 const BASENAME_RESOLVER_ADDRESS = '0x03c4738ee98ae44591e1a4a4f3cab6641d95dd9a';
-// Basename NFT Contract Address (Same as resolver/registrar usually for Basenames, or specific collection)
-// The user provided 0x03c4... which is indeed the L2 Resolver but also acts as the main entry point for Basenames on Base.
-// However, the actual NFT contract for "Basenames" is often the Registrar. 
-// For Base, the "Basename" is an ERC721. Let's assume the address provided IS the NFT contract or we check it.
-// Actually, 0x03c4738ee98ae44591e1a4a4f3cab6641d95dd9a is the L2Resolver.
-// The Base Registrar Implementation is likely what holds the NFTs.
-// BUT, the user explicitly gave 0x03c4... as the contract to check. 
-// Let's try to read standard ERC721 methods from it. If it fails, we might need the specific Registrar address.
-// Upon checking Base docs, 0x4cC... is often the Registrar. 
-// But let's stick to the user's provided address first for the "Contract" check as requested, 
-// OR better, we check the standard L2 Resolver for reverse, and if that fails, we check if they own a name.
-// Wait, if they own a name but haven't set reverse record, we need to find *which* name they own.
-// To do that via contract, we need `tokenOfOwnerByIndex`.
-// Let's assume the user provided address `0x03c4...` is the one they want us to check.
-
+// Basename NFT Contract Address (Same as resolver/registrar usually for Basenames)
 const NFT_CONTRACT_ADDRESS = '0x03c4738ee98ae44591e1a4a4f3cab6641d95dd9a';
 
 const client = createPublicClient({
@@ -38,7 +24,9 @@ export default async function handler(req, res) {
 
         // --- STRATEGY 1: Reverse Resolution (Primary Name) ---
         try {
+            // Correct format for reverse node: <addr_no_0x>.addr.reverse
             const reverseNode = namehash(`${cleanAddress}.addr.reverse`);
+
             const name = await client.readContract({
                 address: BASENAME_RESOLVER_ADDRESS,
                 abi: [{
@@ -56,7 +44,7 @@ export default async function handler(req, res) {
                 return res.status(200).json({ basename: name });
             }
         } catch (err) {
-            console.log('Reverse resolution failed, trying NFT fallback...');
+            console.log('Reverse resolution failed/empty, trying NFT fallback...');
         }
 
         // --- STRATEGY 2: NFT Ownership (Fallback) ---
@@ -105,7 +93,6 @@ export default async function handler(req, res) {
                 });
 
                 // Fetch Metadata
-                // tokenUri might be a URL or base64 data
                 let name = null;
                 if (tokenUri.startsWith('data:application/json;base64,')) {
                     const base64Data = tokenUri.split(',')[1];

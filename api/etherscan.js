@@ -33,7 +33,7 @@ const calculateWalletAgeDays = (firstTxTimestamp) => {
     return diffDays;
 };
 
-const analyzeTransactions = (txs) => {
+const analyzeTransactions = (txs, internalTxs) => {
     let bridge = 0;
     let deployed = 0;
     let interactions = 0;
@@ -41,6 +41,7 @@ const analyzeTransactions = (txs) => {
     // Base L2 Standard Bridge Address
     const L2_STANDARD_BRIDGE = '0x4200000000000000000000000000000000000010';
 
+    // 1. Analyze Normal Transactions (Withdrawals, Interactions, Deployments)
     txs.forEach((tx) => {
         if (tx.isError === '1') return;
 
@@ -53,7 +54,7 @@ const analyzeTransactions = (txs) => {
         const functionName = tx.functionName ? tx.functionName.toLowerCase() : '';
         const methodId = tx.methodId || (tx.input && tx.input.length >= 10 ? tx.input.substring(0, 10) : null);
 
-        // 1. Bridge Detection (Strict: Base Standard Bridge interactions)
+        // Bridge Detection (Withdrawals/Bridge out)
         if (toAddr === L2_STANDARD_BRIDGE) {
             bridge++;
         } else if (
@@ -66,7 +67,7 @@ const analyzeTransactions = (txs) => {
             }
         }
 
-        // 2. DeFi / Interaction Detection (Lend/Borrow/Stake/Swap)
+        // DeFi / Interaction Detection
         if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') {
             if (
                 functionName.includes('supply') ||
@@ -84,6 +85,20 @@ const analyzeTransactions = (txs) => {
             }
         }
     });
+
+    // 2. Analyze Internal Transactions (Deposits/Bridge in)
+    // Internal transactions often represent ETH transfers from contracts (like the bridge) to the user
+    if (internalTxs && Array.isArray(internalTxs)) {
+        internalTxs.forEach((tx) => {
+            if (tx.isError === '1') return;
+            const fromAddr = tx.from.toLowerCase();
+
+            // Check if money came FROM the bridge (Deposit to L2)
+            if (fromAddr === L2_STANDARD_BRIDGE) {
+                bridge++;
+            }
+        });
+    }
 
     return { bridge, defi: interactions, deployed };
 };
@@ -107,23 +122,30 @@ export default async function handler(req, res) {
         const baseUrl = 'https://api.etherscan.io/v2/api';
         const chainId = '8453'; // Base Mainnet
 
-        // 1. Fetch Transaction List
+        // 1. Fetch Normal Transaction List
         const txUrl = `${baseUrl}?chainid=${chainId}&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
+
+        // 2. Fetch Internal Transaction List (For Bridge Deposits)
+        const internalTxUrl = `${baseUrl}?chainid=${chainId}&module=account&action=txlistinternal&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
 
         // DEBUG LOGGING
         console.log(`Fetching TXs from: ${txUrl.replace(apiKey, 'HIDDEN_KEY')}`);
 
-        const txRes = await fetch(txUrl);
+        const [txRes, internalTxRes] = await Promise.all([
+            fetch(txUrl),
+            fetch(internalTxUrl)
+        ]);
+
         const txJson = await txRes.json();
+        const internalTxJson = await internalTxRes.json();
 
         // DEBUG LOGGING
         console.log('TX Response Status:', txJson.status);
-        console.log('TX Response Message:', txJson.message);
         if (txJson.status !== '1') {
             console.log('TX Response Result Sample:', JSON.stringify(txJson.result).slice(0, 200));
         }
 
-        // 2. Fetch Balance
+        // 3. Fetch Balance
         const balUrl = `${baseUrl}?chainid=${chainId}&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
         const balRes = await fetch(balUrl);
         const balJson = await balRes.json();
@@ -147,6 +169,7 @@ export default async function handler(req, res) {
         }
 
         const txs = txJson.result;
+        const internalTxs = Array.isArray(internalTxJson.result) ? internalTxJson.result : [];
 
         // Calculations
         const uniqueDates = Array.from(
@@ -157,7 +180,7 @@ export default async function handler(req, res) {
             )
         );
 
-        const analysis = analyzeTransactions(txs);
+        const analysis = analyzeTransactions(txs, internalTxs);
         const longestStreak = calculateStreak(uniqueDates);
         const firstTxTimestamp = txs.length > 0 ? parseInt(txs[0].timeStamp, 10) : 0;
         const walletAgeDays = calculateWalletAgeDays(firstTxTimestamp);
