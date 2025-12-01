@@ -7,7 +7,7 @@
   "frame": {
     "version": "1",
     "name": "BasePrint",
-    "iconUrl": "https://baseprint.vercel.app/icon.png",
+    "iconUrl": "https://github.com/0xEdmundo/BasePrint-mini-app/blob/main/public/farcaster-icon.png",
     "homeUrl": "https://baseprint.vercel.app",
     "imageUrl": "https://baseprint.vercel.app/opengraph-image.png",
     "buttonTitle": "Mint Your ID",
