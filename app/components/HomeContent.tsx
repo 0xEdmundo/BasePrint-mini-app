@@ -39,12 +39,6 @@ const AppLogo = ({ className }: { className?: string }) => (
     </svg>
 );
 
-const FarcasterIcon = ({ className }: { className?: string }) => (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M18.24.24H5.76A5.76 5.76 0 0 0 0 6v12a5.76 5.76 0 0 0 5.76 5.76h12.48A5.76 5.76 0 0 0 24 18V6A5.76 5.76 0 0 0 18.24.24m.816 17.166v.504a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H13.536a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h3.806v-.546h-5.47v.546h3.806a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H10.464a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h3.536v-1.25a6.007 6.007 0 0 1-3.16-1.042V17.5a.49.49 0 0 1 .543.48v.588a.49.49 0 0 1-.543.48H6.312a.49.49 0 0 1-.543-.48v-.294a.49.49 0 0 1 .543-.48h2.062v-.546h-2.937v.546h2.062a.49.49 0 0 1 .543.48v.294a.49.49 0 0 1-.543.48H4.944a.49.49 0 0 1-.543-.48v-.588a.49.49 0 0 1 .543-.48v-.504h2.188c-.62-.43-1.134-.975-1.503-1.587a4.2 4.2 0 0 1-.397-1.164c-.033-.19-.047-.384-.047-.578 0-.84.225-1.636.623-2.333l.03-.047.016-.017.994-1.043.48.504-.993 1.043a4.05 4.05 0 0 0-.5 1.892c0 .248.03.492.083.729.123.542.387 1.037.753 1.45.67.755 1.63 1.229 2.705 1.229a3.67 3.67 0 0 0 3.12-1.74 3.65 3.65 0 0 0 .385-1.668c0-.62-.158-1.206-.437-1.724l-.017-.03-.03-.03-1.89-1.984.48-.504 1.89 1.983c.376.697.589 1.493.589 2.333 0 .194-.014.388-.047.578a4.2 4.2 0 0 1-.397 1.164 4.2 4.2 0 0 1-1.503 1.587h2.188z" />
-    </svg>
-);
-
 // --- 3. MAIN COMPONENT ---
 export default function HomeContent() {
     const { address, isConnected } = useAccount();
@@ -251,8 +245,8 @@ export default function HomeContent() {
 
                 {!isConnected ? (
                     <div className="flex flex-col items-center justify-center h-[600px] bg-gradient-to-b from-blue-50 to-white">
-                        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6">
-                            <FarcasterIcon className="w-12 h-12 text-[#0052FF]" />
+                        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 overflow-hidden">
+                            <img src="/farcaster-icon.png" alt="Farcaster" className="w-full h-full object-cover" />
                         </div>
                         <h2 className="text-2xl font-black text-slate-900 mb-2">
                             Connect Identity
@@ -459,7 +453,7 @@ export default function HomeContent() {
                                         className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
                                     >
                                         <span>SHARE ON FARCASTER</span>
-                                        <FarcasterIcon className="w-5 h-5" />
+                                        <img src="/farcaster-icon.png" alt="Farcaster" className="w-5 h-5 rounded-full" />
                                     </button>
                                 ) : (
                                     <button

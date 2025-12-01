@@ -20,12 +20,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const description = 'Your onchain identity on Base.';
 
   // Construct the OG image URL
-  // We use a relative URL here, Next.js handles the host automatically in most cases, 
-  // but for Farcaster frames/embeds, an absolute URL is safer if we knew the host.
-  // Since we are in a server component, we can try to infer or just use the relative path which Next.js resolves.
-  // Ideally, we should use process.env.NEXT_PUBLIC_HOST or similar if available, but relative often works for Vercel deployments.
-  // Let's use the Vercel URL if available, otherwise relative.
-  const host = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://baseprint.vercel.app';
+  // Ensure we have a valid protocol
+  const vercelUrl = process.env.VERCEL_URL;
+  const host = vercelUrl ? `https://${vercelUrl}` : 'https://baseprint.vercel.app';
   const ogImageUrl = `${host}/api/og?${params.toString()}`;
 
   return {
@@ -46,7 +43,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     other: {
       'fc:frame': 'vNext',
       'fc:frame:image': ogImageUrl,
-      'fc:frame:button:1': 'Get your BasePrint',
+      'fc:frame:button:1': 'Mint BasePrint ID',
       'fc:frame:button:1:action': 'link',
       'fc:frame:button:1:target': 'https://baseprint.vercel.app',
     },
