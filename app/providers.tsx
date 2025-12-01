@@ -13,7 +13,7 @@ const config = createConfig({
   chains: [base],
   transports: { [base.id]: http() },
   connectors: [
-    coinbaseWallet({ appName: "BasePrint", preference: "smartWalletOnly" }),
+    coinbaseWallet({ appName: "BasePrint", preference: "all" }),
     injected(),
   ],
 });

@@ -108,8 +108,19 @@ export default async function handler(req, res) {
 
         // 1. Fetch Transaction List
         const txUrl = `${baseUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
+
+        // DEBUG LOGGING
+        console.log(`Fetching TXs from: ${txUrl.replace(apiKey, 'HIDDEN_KEY')}`);
+
         const txRes = await fetch(txUrl);
         const txJson = await txRes.json();
+
+        // DEBUG LOGGING
+        console.log('TX Response Status:', txJson.status);
+        console.log('TX Response Message:', txJson.message);
+        if (txJson.status !== '1') {
+            console.log('TX Response Result Sample:', JSON.stringify(txJson.result).slice(0, 200));
+        }
 
         // 2. Fetch Balance
         const balUrl = `${baseUrl}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
@@ -130,7 +141,6 @@ export default async function handler(req, res) {
         }
 
         if (!Array.isArray(txJson.result)) {
-            // If BaseScan returns an error message in result
             console.error('BaseScan Error:', txJson);
             throw new Error(`BaseScan error: ${txJson.message || 'Unknown error'}`);
         }
