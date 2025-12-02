@@ -136,8 +136,25 @@ export default function HomeContent() {
 
         } catch (error) {
             console.error('BasePrint fetchData error', error);
-            setUserData(null);
-            setStats(null);
+            // Set default values on error so UI doesn't hang
+            setUserData({
+                username: 'Explorer',
+                pfp: '',
+                score: 0.5,
+                fid: 0,
+                since: '2024',
+                isVerified: false,
+            });
+            setStats({
+                txCount: 0,
+                daysActive: 0,
+                longestStreak: 0,
+                bridge: 0,
+                defi: 0,
+                deployed: 0,
+                walletAge: 0,
+                isVerified: false,
+            });
         } finally {
             setLoading(false);
         }
