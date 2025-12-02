@@ -155,29 +155,30 @@ export async function getEtherscanData(address: string) {
                 }
             }
 
-            // DeFi Detection - Categorized
+            // DeFi Detection - Categorized (not mutually exclusive)
             if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') {
                 // Lending/Supply
                 if (
                     functionName.includes('lend') ||
                     functionName.includes('supply') ||
-                    functionName.includes('deposit') && (
+                    (functionName.includes('deposit') && (
                         functionName.includes('aave') ||
                         functionName.includes('compound') ||
-                        functionName.includes('pool')
-                    )
+                        functionName.includes('pool') ||
+                        functionName.includes('vault')
+                    ))
                 ) {
                     defiLend++;
                 }
                 // Borrowing
-                else if (
+                if (
                     functionName.includes('borrow') ||
                     functionName.includes('repay')
                 ) {
                     defiBorrow++;
                 }
                 // Swapping
-                else if (
+                if (
                     functionName.includes('swap') ||
                     functionName.includes('exchange') ||
                     functionName.includes('trade')
@@ -185,13 +186,51 @@ export async function getEtherscanData(address: string) {
                     defiSwap++;
                 }
                 // Staking/Farming
-                else if (
+                if (
                     functionName.includes('stake') ||
                     functionName.includes('farm') ||
                     functionName.includes('harvest') ||
-                    functionName.includes('claim') && !functionName.includes('reclaim')
+                    functionName.includes('claim') ||
+                    functionName.includes('unstake') ||
+                    functionName.includes('withdraw') && (
+                        functionName.includes('stake') ||
+                        functionName.includes('farm') ||
+                        functionName.includes('reward')
+                    )
                 ) {
                     defiStake++;
+                }
+
+                // If no specific category matched but has complex methodId, count as general DeFi interaction
+                // This catches many DeFi interactions that don't have decoded function names
+                if (!functionName || functionName === '') {
+                    // Heuristic: complex method IDs are likely DeFi
+                    // Common DeFi method IDs that might not be decoded
+                    const commonDefiMethods = [
+                        '0x38ed1739', // swapExactTokensForTokens
+                        '0x7ff36ab5', // swapExactETHForTokens
+                        '0x18cbafe5', // swapExactTokensForETH
+                        '0xe8e33700', // addLiquidity
+                        '0xf305d719', // addLiquidityETH
+                        '0xbaa2abde', // removeLiquidity
+                        '0x02751cec', // removeLiquidityETH
+                        '0xa694fc3a', // stake
+                        '0x2e1a7d4d', // withdraw
+                        '0x3ccfd60b', // withdraw (another variant)
+                        '0xe2bbb158', // deposit
+                        '0xb6b55f25', // deposit (another variant)
+                    ];
+
+                    if (commonDefiMethods.includes(methodId)) {
+                        // Try to categorize based on method ID
+                        if (methodId.startsWith('0x38ed') || methodId.startsWith('0x7ff3') || methodId.startsWith('0x18cb')) {
+                            defiSwap++;
+                        } else if (methodId.startsWith('0xa694') || methodId.startsWith('0x2e1a') || methodId.startsWith('0x3ccf')) {
+                            defiStake++;
+                        } else if (methodId.startsWith('0xe2bb') || methodId.startsWith('0xb6b5')) {
+                            defiLend++;
+                        }
+                    }
                 }
             }
         });
