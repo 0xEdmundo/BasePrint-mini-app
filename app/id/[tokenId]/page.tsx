@@ -4,18 +4,26 @@ const BASE_URL = 'https://baseprint.vercel.app';
 
 type Props = {
     params: { tokenId: string };
+    searchParams: { [key: string]: string | string[] | undefined };
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
     const { tokenId } = params;
+    const address = searchParams?.address as string | undefined;
 
     // Fetch metadata from our API
+    // Pass address if available to ensure we can generate metadata even if contract read fails (e.g. indexing lag)
+    let apiUrl = `${BASE_URL}/api/metadata/${tokenId}`;
+    if (address) {
+        apiUrl += `?address=${address}`;
+    }
+
     let imageUrl = `${BASE_URL}/api/image?username=BasePrint&score=0.5`;
     let title = `BasePrint ID #${tokenId}`;
-    const description = 'Your onchain identity card that combines your Farcaster presence, Neynar score, and Base wallet activity into a single immutable NFT.';
+    const description = 'Your onchain identity card that combines your Farcaster asset, Neynar score, and Base wallet activity into a single immutable NFT.';
 
     try {
-        const metadataRes = await fetch(`${BASE_URL}/api/metadata/${tokenId}`, {
+        const metadataRes = await fetch(apiUrl, {
             cache: 'no-store',
         });
 
