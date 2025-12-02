@@ -6,6 +6,7 @@ import { createConfig, http, WagmiProvider } from "wagmi";
 import { base } from "wagmi/chains";
 import { coinbaseWallet, injected } from "wagmi/connectors";
 import sdk from "@farcaster/frame-sdk";
+import { OnchainKitProvider } from '@coinbase/onchainkit';
 
 const queryClient = new QueryClient();
 
@@ -37,7 +38,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <OnchainKitProvider chain={base}>
+          {children}
+        </OnchainKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
