@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPublicClient, http, parseAbi } from 'viem';
 import { base } from 'viem/chains';
+import { getEtherscanData, getNeynarData, getBasenameData } from '../../lib/api-helpers';
 
 const client = createPublicClient({
     chain: base,
     transport: http(),
 });
 
-const CONTRACT = '0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2';
-
-// Helper to fetch internal API data
-async function fetchInternalApi(baseUrl: string, endpoint: string, params: Record<string, string>) {
-    const url = new URL(`${baseUrl}${endpoint}`);
-    Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
-    const res = await fetch(url.toString());
-    if (!res.ok) return null;
-    return res.json();
-}
+const CONTRACT = '0x66fADf7f93A4407DD336C35cD09ccDA58559442b';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
     const tokenId = params.id;
@@ -35,14 +27,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             return NextResponse.json({ error: 'Token not found' }, { status: 404 });
         }
 
-        // 2. Fetch Live Data for Owner
-        // We need the host to call our own internal APIs
-        const host = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-
+        // 2. Fetch Live Data for Owner using shared helpers
         const [neynarData, etherscanData, basenameData] = await Promise.all([
-            fetchInternalApi(host, '/api/neynar', { address: owner }),
-            fetchInternalApi(host, '/api/etherscan', { address: owner }),
-            fetchInternalApi(host, '/api/basename', { address: owner })
+            getNeynarData(owner),
+            getEtherscanData(owner),
+            getBasenameData(owner)
         ]);
 
         // 3. Construct Image URL Params
@@ -70,6 +59,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             imgParams.append('basename', basenameData.basename);
         }
 
+        // Use absolute URL for image generation if possible, or relative
+        const host = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
         const imageUrl = `${host}/api/image?${imgParams.toString()}`;
 
         // 4. Return Metadata
