@@ -74,6 +74,13 @@ const App = () => {
     setNftImageUrl(newImage);
   };
 
+  /** Generate dynamic BasePrint ID image using backend API */
+  const generateImage = () => {
+    // Construct API URL with address (additional params can be added as needed)
+    const url = `/api/image?address=${address}`;
+    setNftImageUrl(url);
+  };
+
   /** Simulates the NFT minting process. */
   const mintNft = async () => {
     clearMessages();
@@ -290,6 +297,15 @@ const App = () => {
               Connect Wallet
             </button>
           )}
+          {/* Create BasePrint ID button */}
+          {isWalletConnected && (
+            <button
+              onClick={generateImage}
+              className={buttonClass + ' w-full bg-green-600 hover:bg-green-700'}
+            >
+              Create BasePrint ID (Generate Image)
+            </button>
+          )}
           {isWalletConnected && !message.includes('NFT successfully minted') && (
             <button onClick={mintNft} className={buttonClass + ' w-full bg-blue-500 hover:bg-blue-600'} disabled={isMinting}>
               {isMinting ? (
@@ -325,7 +341,7 @@ const App = () => {
           </p>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 
