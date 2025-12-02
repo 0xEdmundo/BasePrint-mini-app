@@ -14,83 +14,100 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const tokenId = params.id;
 
     try {
-        // 1. Read Identity Data from Contract (Snapshot)
-        // Assuming mapping: identities(uint256) returns (username, score, txCount, daysActive, mintDate)
-        const data = await client.readContract({
-            address: CONTRACT,
-            abi: parseAbi([
-                'function identities(uint256) view returns (string username, uint256 score, uint256 txCount, uint256 daysActive, string mintDate)',
-                'function ownerOf(uint256) view returns (address)'
-            ]),
-            functionName: 'identities',
-            args: [BigInt(tokenId)],
-        }) as [string, bigint, bigint, bigint, string];
-
-        const [username, score, txCount, daysActive, mintDate] = data;
-
-        // 2. Get Owner (for fallback or extra info if needed)
+        // 1. Read Core Identity Data from Contract (The "Snapshot" Truth)
+        let identityData: [string, bigint, bigint, bigint, string] | null = null;
         let owner = '';
+
         try {
-            owner = await client.readContract({
-                address: CONTRACT,
-                abi: parseAbi(['function ownerOf(uint256) view returns (address)']),
-                functionName: 'ownerOf',
-                args: [BigInt(tokenId)],
-            }) as string;
+            // Parallel fetch for efficiency
+            const [identityRes, ownerRes] = await Promise.all([
+                client.readContract({
+                    address: CONTRACT,
+                    abi: parseAbi([
+                        'function identities(uint256) view returns (string username, uint256 score, uint256 txCount, uint256 daysActive, string mintDate)'
+                    ]),
+                    functionName: 'identities',
+                    args: [BigInt(tokenId)],
+                }),
+                client.readContract({
+                    address: CONTRACT,
+                    abi: parseAbi(['function ownerOf(uint256) view returns (address)']),
+                    functionName: 'ownerOf',
+                    args: [BigInt(tokenId)],
+                })
+            ]);
+
+            identityData = identityRes as [string, bigint, bigint, bigint, string];
+            owner = ownerRes as string;
+
         } catch (e) {
-            console.warn('Token owner not found (might be burned or invalid)');
+            console.error('Contract read error:', e);
+            return NextResponse.json({ error: 'Token not found or contract error' }, { status: 404 });
         }
 
-        // 3. Construct Image URL Params using STORED data
+        const [storedUsername, storedScore, storedTxCount, storedDaysActive, storedMintDate] = identityData;
+
+        // 2. Fetch Rich Data from APIs (to fill in the gaps: PFP, Bridge, DeFi, etc.)
+        // We use the owner's address to fetch this.
+        // NOTE: This data is "live" or "current", but combined with the stored "snapshot" stats.
+        const [neynarData, etherscanData, basenameData] = await Promise.all([
+            getNeynarData(owner),
+            getEtherscanData(owner),
+            getBasenameData(owner)
+        ]);
+
+        // 3. Construct Image URL Params (Hybrid: Stored + Live)
         const imgParams = new URLSearchParams();
-        imgParams.append('username', username || 'Explorer');
-        imgParams.append('score', (Number(score) / 100).toString()); // Score is stored as uint (e.g. 85 for 0.85)
-        imgParams.append('txCount', txCount.toString());
-        imgParams.append('daysActive', daysActive.toString());
-        imgParams.append('date', mintDate);
 
-        // We might not have pfp/fid stored on-chain, so we might still need to fetch basic profile info
-        // if we want the PFP in the image. The user said "card's snapshot with data".
-        // The card has PFP. If PFP isn't on-chain, we must fetch it live or use a placeholder.
-        // Let's fetch basic Neynar data just for PFP/FID if username exists.
-        let pfp = '';
-        let fid = '';
-        let isVerified = 'false';
+        // A. Stored Stats (Priority)
+        imgParams.append('username', storedUsername || neynarData?.username || 'Explorer');
+        imgParams.append('score', (Number(storedScore) / 100).toString());
+        imgParams.append('txCount', storedTxCount.toString());
+        imgParams.append('daysActive', storedDaysActive.toString());
+        imgParams.append('date', storedMintDate);
 
-        if (username) {
-            try {
-                // Quick fetch for PFP/FID using username if possible, or owner address
-                // Since we have owner address, let's use that to get current PFP
-                const neynarData = await getNeynarData(owner);
-                if (neynarData) {
-                    pfp = neynarData.pfp;
-                    fid = neynarData.fid.toString();
-                    isVerified = neynarData.isVerified ? 'true' : 'false';
-                }
-            } catch (e) {
-                console.warn('Failed to fetch PFP for snapshot');
-            }
+        // B. Live/Rich Data (Complementary)
+        imgParams.append('pfp', neynarData?.pfp || 'https://zora.co/assets/icon.png');
+        imgParams.append('fid', (neynarData?.fid || 0).toString());
+        imgParams.append('isVerified', neynarData?.isVerified ? 'true' : 'false');
+
+        if (basenameData?.basename) {
+            imgParams.append('basename', basenameData.basename);
         }
 
-        imgParams.append('pfp', pfp);
-        imgParams.append('fid', fid);
-        imgParams.append('isVerified', isVerified);
+        if (etherscanData) {
+            // We use the live breakdown for these, as they aren't stored on-chain.
+            // This is a reasonable compromise to have a rich card.
+            imgParams.append('walletAge', (etherscanData.walletAge || 0).toString());
+            imgParams.append('bridge', (etherscanData.bridge || 0).toString());
+            imgParams.append('defi', (etherscanData.defi || 0).toString());
+            imgParams.append('deployed', (etherscanData.deployed || 0).toString());
+            imgParams.append('streak', (etherscanData.longestStreak || 0).toString());
+        }
 
         // Use absolute URL for image generation
-        const host = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-        const imageUrl = `${host}/api/image?${imgParams.toString()}`;
+        // Ensure VERCEL_URL is handled correctly (it doesn't include https://)
+        const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+        const host = process.env.VERCEL_URL ? process.env.VERCEL_URL : 'localhost:3000';
+        const baseUrl = `${protocol}://${host}`;
+
+        const imageUrl = `${baseUrl}/api/image?${imgParams.toString()}`;
 
         // 4. Return Metadata
         return NextResponse.json({
             name: `BasePrint #${tokenId}`,
-            description: `Onchain identity snapshot for ${username}. Minted on ${mintDate}.`,
+            description: `Onchain identity snapshot for ${storedUsername}. Minted on ${storedMintDate}.`,
             image: imageUrl,
+            external_url: `${baseUrl}`,
             attributes: [
-                { trait_type: 'Username', value: username },
-                { trait_type: 'Neynar Score', value: Number(score) / 100 },
-                { trait_type: 'TX Count', value: Number(txCount) },
-                { trait_type: 'Active Days', value: Number(daysActive) },
-                { trait_type: 'Mint Date', value: mintDate },
+                { trait_type: 'Username', value: storedUsername },
+                { trait_type: 'Neynar Score', value: Number(storedScore) / 100 },
+                { trait_type: 'TX Count', value: Number(storedTxCount) },
+                { trait_type: 'Active Days', value: Number(storedDaysActive) },
+                { trait_type: 'Mint Date', value: storedMintDate },
+                { trait_type: 'Wallet Age', value: etherscanData?.walletAge || 0 },
+                { trait_type: 'Bridge Activity', value: etherscanData?.bridge || 0 },
+                { trait_type: 'DeFi Interactions', value: etherscanData?.defi || 0 },
             ]
         });
 
