@@ -294,21 +294,6 @@ export default function HomeContent() {
         return (
             <div className="fixed inset-0 bg-[#0052FF] flex flex-col items-center justify-center z-50 text-white">
                 <div className="animate-bounce mb-6">
-                    <AppLogo className="w-24 h-24" />
-                </div>
-                <h1 className="text-3xl font-black tracking-tighter">BasePrint</h1>
-                <p className="text-blue-200 text-xs mt-2 font-mono tracking-widest">
-                    IDENTITY LAYER LOADING...
-                </p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="min-h-screen bg-slate-100 font-sans text-slate-900 flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100 relative">
-                {/* HEADER */}
-                <div className="bg-white/80 backdrop-blur-md p-4 flex justify-between items-center absolute top-0 w-full z-20">
                     <div className="flex items-center gap-2">
                         <AppLogo className="w-6 h-6" />
                         <span className="font-bold text-slate-900 tracking-tight">
@@ -564,8 +549,18 @@ export default function HomeContent() {
                     </div>
                 )}
 
-                {/* DEBUG PANEL REMOVED */}
+                {/* ADMIN TOOLS (Temporary) */}
+                {isConnected && (
+                    <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
+                        <button
+                            onClick={handleSetBaseURI}
+                            className="text-[10px] text-gray-400 hover:text-blue-500 font-mono underline"
+                        >
+                            [Admin: Set Base URI]
+                        </button>
+                    </div>
+                )}
             </div>
-        </div>
+        </div >
     );
-}
+    }
