@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPublicClient, http, parseAbi } from 'viem';
 import { base } from 'viem/chains';
-import { getEtherscanData, getNeynarData, getBasenameData } from '../../lib/api-helpers';
+import { getEtherscanData, getNeynarData, getBasenameData } from '../../../lib/api-helpers';
 
 const client = createPublicClient({
     chain: base,
