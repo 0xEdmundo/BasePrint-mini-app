@@ -113,12 +113,16 @@ export default function HomeContent() {
             };
 
             try {
-                const etherscanRes = await fetch(`/api/etherscan?address=${address}`);
+                const etherscanRes = await fetch(`/api/etherscan?address=${address}`, { cache: 'no-store' });
                 if (etherscanRes.ok) {
                     const data = await etherscanRes.json();
-                    console.log('Etherscan Data:', data); // Debug log
-                    statsData = data;
-                    addLog(`Etherscan success: TXs=${data.txCount}`);
+                    addLog(`Etherscan Raw: ${JSON.stringify(data).slice(0, 100)}`); // Debug full JSON
+                    if (data.txCount !== undefined) {
+                        statsData = data;
+                        addLog(`Etherscan success: TXs=${data.txCount}`);
+                    } else {
+                        addLog('Etherscan data missing txCount');
+                    }
                 } else {
                     const errText = await etherscanRes.text();
                     addLog(`Etherscan failed: ${etherscanRes.status} - ${errText.slice(0, 50)}`);
@@ -129,11 +133,11 @@ export default function HomeContent() {
 
             // 3. BASENAME
             try {
-                const basenameRes = await fetch(`/api/basename?address=${address}`);
+                const basenameRes = await fetch(`/api/basename?address=${address}`, { cache: 'no-store' });
                 if (basenameRes.ok) {
                     const data = await basenameRes.json();
+                    addLog(`Basename Raw: ${JSON.stringify(data)}`);
                     setBasename(data.basename);
-                    addLog(`Basename: ${data.basename}`);
                 } else {
                     setBasename(null);
                 }
@@ -177,29 +181,22 @@ export default function HomeContent() {
 
     const handleMint = () => {
         addLog('Mint button clicked');
-        console.log('handleMint called'); // Debug
-        console.log('UserData:', userData); // Debug
-        console.log('Stats:', stats); // Debug
 
         if (!userData || !stats) {
             addLog('Mint aborted: Missing data');
-            console.error('Missing data for minting');
             return;
         }
 
-        const scoreInt = Math.floor((userData.score || 0) * 100);
-        const dateStr = new Date().toISOString().split('T')[0];
-
-        addLog(`Minting with: ${userData.username}, Score=${scoreInt}, TX=${stats.txCount}`);
-        console.log('Mint Args:', {
-            username: userData.username,
-            score: BigInt(scoreInt),
-            txCount: BigInt(stats.txCount),
-            daysActive: BigInt(stats.daysActive),
-            date: dateStr
-        });
-
         try {
+            const scoreInt = Math.floor((userData.score || 0) * 100);
+            const dateStr = new Date().toISOString().split('T')[0];
+
+            // Safe BigInt conversion with fallbacks
+            const txCount = stats.txCount ? BigInt(stats.txCount) : 0n;
+            const daysActive = stats.daysActive ? BigInt(stats.daysActive) : 0n;
+
+            addLog(`Minting: ${userData.username}, Score=${scoreInt}, TX=${txCount}`);
+
             writeContract({
                 address: CONTRACT_ADDRESS as `0x${string}`,
                 abi: [
@@ -221,14 +218,15 @@ export default function HomeContent() {
                 args: [
                     userData.username,
                     BigInt(scoreInt),
-                    BigInt(stats.txCount),
-                    BigInt(stats.daysActive),
+                    txCount,
+                    daysActive,
                     dateStr,
                 ],
                 value: parseEther('0.0002'),
             });
         } catch (err) {
-            addLog(`WriteContract error: ${err}`);
+            console.error('Mint Error:', err);
+            addLog(`Mint Error: ${err}`);
         }
     };
 

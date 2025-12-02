@@ -6,34 +6,45 @@ const BASE_ETHERSCAN_API = 'https://api.basescan.org/api';
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
 
 // --- ETHERSCAN DATA ---
+// --- ETHERSCAN DATA ---
 export async function getEtherscanData(address: string) {
-    if (!address) return null;
+    const defaultStats = {
+        txCount: 0,
+        daysActive: 0,
+        longestStreak: 0,
+        bridge: 0,
+        defi: 0,
+        deployed: 0,
+        walletAge: 0,
+    };
+
+    if (!address) return defaultStats;
+
     if (!ETHERSCAN_API_KEY) {
         console.error('Etherscan API key missing');
-        return null;
+        return defaultStats;
     }
 
     try {
         const txListUrl = `${BASE_ETHERSCAN_API}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
-        const txRes = await fetch(txListUrl);
+        const txRes = await fetch(txListUrl, { next: { revalidate: 60 } }); // Cache for 60s
+
+        if (!txRes.ok) {
+            console.error(`BaseScan API HTTP Error: ${txRes.status}`);
+            return defaultStats;
+        }
+
         const txData = await txRes.json();
 
         if (txData.status !== '1' || !txData.result) {
-            console.error('BaseScan API Error/Status:', txData.message, txData.result); // Detailed log
-            // Return empty stats if no transactions found (or API error that isn't a fetch error)
-            return {
-                txCount: 0,
-                daysActive: 0,
-                longestStreak: 0,
-                bridge: 0,
-                defi: 0,
-                deployed: 0,
-                walletAge: 0,
-            };
+            console.error('BaseScan API Error/Status:', txData.message, txData.result);
+            return defaultStats;
         }
 
         const transactions = txData.result;
         const txCount = transactions.length;
+
+        if (txCount === 0) return defaultStats;
 
         // Wallet Age
         const firstTx = transactions[0];
@@ -102,7 +113,7 @@ export async function getEtherscanData(address: string) {
 
     } catch (error) {
         console.error('getEtherscanData error:', error);
-        return null;
+        return defaultStats;
     }
 }
 

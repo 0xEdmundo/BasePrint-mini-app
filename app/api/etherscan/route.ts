@@ -10,18 +10,5 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await getEtherscanData(address);
-
-    if (!data) {
-        return NextResponse.json({
-            txCount: 0,
-            daysActive: 0,
-            longestStreak: 0,
-            bridge: 0,
-            defi: 0,
-            deployed: 0,
-            walletAge: 0,
-        });
-    }
-
     return NextResponse.json(data);
 }
