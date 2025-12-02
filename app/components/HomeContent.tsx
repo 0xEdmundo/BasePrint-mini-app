@@ -1,3 +1,5 @@
+"use client";
+
 import { Name } from '@coinbase/onchainkit/identity';
 import { base } from 'wagmi/chains';
 import { useState, useEffect, useCallback } from 'react';
