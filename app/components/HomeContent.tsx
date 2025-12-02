@@ -290,7 +290,8 @@ export default function HomeContent() {
         if (!mintedTokenId) return;
 
         // Include address in share URL to ensure metadata can be generated even if indexing is slow
-        const shareUrl = `https://baseprint.vercel.app/id/${mintedTokenId}?address=${address}`;
+        // Use Farcaster Mini App URL to enable "App" button in cast
+        const shareUrl = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${mintedTokenId}&address=${address}`;
         const castText = `Just minted my BasePrint ID! 🎨\nQuery your BasePrint ID, your on-chain ID card that combines your Farcaster asset, Neynar score, and Base wallet activity into a single immutable NFT.`;
 
         // Open Warpcast composer with the share URL
