@@ -1,15 +1,35 @@
-'use client';
+import { Name } from '@coinbase/onchainkit/identity';
+import { base } from 'wagmi/chains';
 
-import { useState, useEffect, useCallback } from 'react';
-import {
-    useAccount,
-    useConnect,
-    useDisconnect,
-    useWriteContract,
-    type BaseError,
-} from 'wagmi';
-import { parseEther } from 'viem';
-import sdk from '@farcaster/frame-sdk';
+// ... (keep existing imports)
+
+// ... (inside component)
+// const [basename, setBasename] = useState<string | null>(null); // REMOVE THIS
+
+// ... (inside fetchData)
+// 3. BASENAME - REMOVE CUSTOM FETCH
+/*
+try {
+    const basenameRes = await fetch(`/api/basename?address=${address}`);
+    if (basenameRes.ok) {
+        const data = await basenameRes.json();
+        setBasename(data.basename);
+    } else {
+        setBasename(null);
+    }
+} catch (e) {
+    console.error('Basename Fetch Error', e);
+    setBasename(null);
+}
+*/
+
+// ... (inside render)
+{/* 4. Basename (En Alt) */ }
+<div className="mt-2">
+    <div className="text-[10px] font-bold text-[#0052FF] bg-white px-2 py-0.5 rounded-full inline-block shadow-sm">
+        <Name address={address} chain={base} />
+    </div>
+</div>
 
 // --- 1. CONFIG & API KEYS ---
 const CONTRACT_ADDRESS = '0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2';
