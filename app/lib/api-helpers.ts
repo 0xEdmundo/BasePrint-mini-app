@@ -2,7 +2,7 @@ import { createPublicClient, http, parseAbi } from 'viem';
 import { base } from 'viem/chains';
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || '';
-const BASE_ETHERSCAN_API = 'https://api.basescan.org/api';
+const BASE_ETHERSCAN_API = 'https://api.etherscan.io/v2/api';
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
 
 // --- ETHERSCAN DATA ---
@@ -26,7 +26,7 @@ export async function getEtherscanData(address: string) {
     }
 
     try {
-        const txListUrl = `${BASE_ETHERSCAN_API}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
+        const txListUrl = `${BASE_ETHERSCAN_API}?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
         const txRes = await fetch(txListUrl, { next: { revalidate: 60 } }); // Cache for 60s
 
         if (!txRes.ok) {
@@ -146,9 +146,14 @@ export async function getNeynarData(address: string) {
         const followingCount = user.following_count || 0;
 
         let score = 0.5;
-        if (followerCount > 0) score += Math.min(followerCount / 1000, 0.3);
-        if (followingCount > 0) score += Math.min(followingCount / 500, 0.1);
-        if (user.power_badge) score += 0.1;
+        // Use experimental score if available (assuming 0-100 scale, normalize to 0-1)
+        if (user.score) {
+            score = user.score / 100;
+        } else {
+            if (followerCount > 0) score += Math.min(followerCount / 1000, 0.3);
+            if (followingCount > 0) score += Math.min(followingCount / 500, 0.1);
+            if (user.power_badge) score += 0.1;
+        }
         score = Math.min(score, 1.0);
 
         return {
