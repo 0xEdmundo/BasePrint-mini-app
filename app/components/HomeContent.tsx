@@ -54,6 +54,7 @@ export default function HomeContent() {
     const [userData, setUserData] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
     const [basename, setBasename] = useState<string | null>(null);
+    const [mintedTokenId, setMintedTokenId] = useState<string | null>(null);
 
     // Initialize Farcaster SDK and handle splash
     useEffect(() => {
@@ -201,7 +202,7 @@ export default function HomeContent() {
     const { switchChain } = useSwitchChain();
     const { chain } = useAccount();
 
-    const handleMint = () => {
+    const handleMint = async () => {
         addLog('Mint button clicked');
 
         if (!userData || !stats) {
@@ -224,7 +225,28 @@ export default function HomeContent() {
             const txCount = stats.txCount ? BigInt(stats.txCount) : 0n;
             const daysActive = stats.daysActive ? BigInt(stats.daysActive) : 0n;
 
-            addLog(`Minting: ${userData.username}, Score=${scoreInt}, TX=${txCount}`);
+            // Read nextTokenId before minting to know which token will be minted
+            const { createPublicClient, http } = await import('viem');
+            const client = createPublicClient({
+                chain: base,
+                transport: http(),
+            });
+
+            const nextTokenId = await client.readContract({
+                address: CONTRACT_ADDRESS as `0x${string}`,
+                abi: [
+                    {
+                        name: 'nextTokenId',
+                        type: 'function',
+                        stateMutability: 'view',
+                        inputs: [],
+                        outputs: [{ type: 'uint256' }],
+                    },
+                ],
+                functionName: 'nextTokenId',
+            }) as bigint;
+
+            addLog(`Minting: ${userData.username}, Score=${scoreInt}, TX=${txCount}, TokenID will be: ${nextTokenId}`);
 
             writeContract({
                 address: CONTRACT_ADDRESS as `0x${string}`,
@@ -254,10 +276,26 @@ export default function HomeContent() {
                 value: parseEther('0.0002'),
                 chainId: base.id, // Explicitly set chainId
             });
+
+            // Store the token ID that will be minted
+            setMintedTokenId(nextTokenId.toString());
         } catch (err) {
             console.error('Mint Error:', err);
             addLog(`Mint Error: ${err}`);
         }
+    };
+
+    // Share on Farcaster
+    const handleShareOnFarcaster = () => {
+        if (!mintedTokenId) return;
+
+        const shareUrl = `https://baseprint.vercel.app/id/${mintedTokenId}`;
+        const castText = `Just minted my BasePrint ID! 🎨\n\n`;
+
+        // Open Warpcast composer with the share URL
+        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+
+        sdk.actions.openUrl(warpcastUrl);
     };
 
     // Set the base metadata URI (owner only)
@@ -544,13 +582,12 @@ export default function HomeContent() {
                                 </div>
 
                                 {/* --- ACTION BUTTON (MINT or SHARE) --- */}
-                                {isSuccess ? (
+                                {mintedTokenId ? (
                                     <button
-                                        onClick={handleShare}
+                                        onClick={handleShareOnFarcaster}
                                         className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
                                     >
-                                        <span>SHARE ON FARCASTER</span>
-                                        <img src="/farcaster-icon.png" alt="Farcaster" className="w-5 h-5 rounded-full" />
+                                        <span>🎨 SHARE ON FARCASTER</span>
                                     </button>
                                 ) : (
                                     <button
