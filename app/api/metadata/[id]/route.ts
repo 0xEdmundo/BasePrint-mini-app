@@ -15,18 +15,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     try {
         // 1. Read Core Identity Data from Contract (The "Snapshot" Truth)
-        let identityData: [string, bigint, bigint, bigint, string] | null = null;
+        // Contract uses 'stats' mapping with UserStats struct
+        let statsData: [string, bigint, bigint, bigint, string] | null = null;
         let owner = '';
 
         try {
             // Parallel fetch for efficiency
-            const [identityRes, ownerRes] = await Promise.all([
+            const [statsRes, ownerRes] = await Promise.all([
                 client.readContract({
                     address: CONTRACT,
                     abi: parseAbi([
-                        'function identities(uint256) view returns (string username, uint256 score, uint256 txCount, uint256 daysActive, string mintDate)'
+                        'function stats(uint256) view returns (string username, uint256 neynarScore, uint256 txCount, uint256 daysActive, string mintDate)'
                     ]),
-                    functionName: 'identities',
+                    functionName: 'stats',
                     args: [BigInt(tokenId)],
                 }),
                 client.readContract({
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
                 })
             ]);
 
-            identityData = identityRes as [string, bigint, bigint, bigint, string];
+            statsData = statsRes as [string, bigint, bigint, bigint, string];
             owner = ownerRes as string;
 
         } catch (e) {
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             return NextResponse.json({ error: 'Token not found or contract error' }, { status: 404 });
         }
 
-        const [storedUsername, storedScore, storedTxCount, storedDaysActive, storedMintDate] = identityData;
+        const [storedUsername, storedNeynarScore, storedTxCount, storedDaysActive, storedMintDate] = statsData;
 
         // 2. Fetch Rich Data from APIs (to fill in the gaps: PFP, Bridge, DeFi, etc.)
         // We use the owner's address to fetch this.
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         // A. Stored Stats (Priority)
         imgParams.append('username', storedUsername || neynarData?.username || 'Explorer');
-        imgParams.append('score', (Number(storedScore) / 100).toString());
+        imgParams.append('score', (Number(storedNeynarScore) / 100).toString());
         imgParams.append('txCount', storedTxCount.toString());
         imgParams.append('daysActive', storedDaysActive.toString());
         imgParams.append('date', storedMintDate);
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             external_url: `${baseUrl}`,
             attributes: [
                 { trait_type: 'Username', value: storedUsername },
-                { trait_type: 'Neynar Score', value: Number(storedScore) / 100 },
+                { trait_type: 'Neynar Score', value: Number(storedNeynarScore) / 100 },
                 { trait_type: 'TX Count', value: Number(storedTxCount) },
                 { trait_type: 'Active Days', value: Number(storedDaysActive) },
                 { trait_type: 'Mint Date', value: storedMintDate },
