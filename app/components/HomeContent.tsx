@@ -3,7 +3,7 @@
 import { Name } from '@coinbase/onchainkit/identity';
 import { base } from 'wagmi/chains';
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount, useConnect, useDisconnect, useWriteContract, type BaseError } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useWriteContract, useSwitchChain, type BaseError } from 'wagmi';
 import { parseEther } from 'viem';
 import sdk from '@farcaster/frame-sdk';
 
@@ -179,11 +179,21 @@ export default function HomeContent() {
         if (isConnected) fetchData();
     }, [isConnected, address, fetchData]);
 
+    const { switchChain } = useSwitchChain();
+    const { chain } = useAccount();
+
     const handleMint = () => {
         addLog('Mint button clicked');
 
         if (!userData || !stats) {
             addLog('Mint aborted: Missing data');
+            return;
+        }
+
+        // Enforce Base Network
+        if (chain?.id !== base.id) {
+            addLog('Wrong network. Switching to Base...');
+            switchChain({ chainId: base.id });
             return;
         }
 
@@ -223,6 +233,7 @@ export default function HomeContent() {
                     dateStr,
                 ],
                 value: parseEther('0.0002'),
+                chainId: base.id, // Explicitly set chainId
             });
         } catch (err) {
             console.error('Mint Error:', err);

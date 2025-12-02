@@ -127,6 +127,14 @@ export async function GET(req: NextRequest) {
                                     <div style={{ width: '100%', height: '12px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
                                         <div style={{ width: `${score * 100}%`, height: '100%', background: 'linear-gradient(to right, #86efac, #22c55e)' }}></div>
                                     </div>
+                                    {/* Mint Date */}
+                                    {searchParams.get('date') && (
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                                            <span style={{ fontSize: '12px', color: '#BFDBFE', fontFamily: 'monospace' }}>
+                                                Minted: {searchParams.get('date')}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                             </div>
