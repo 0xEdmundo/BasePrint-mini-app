@@ -19,6 +19,7 @@ export async function getEtherscanData(address: string) {
         const txData = await txRes.json();
 
         if (txData.status !== '1' || !txData.result) {
+            console.error('BaseScan API Error/Status:', txData.message, txData.result); // Detailed log
             // Return empty stats if no transactions found (or API error that isn't a fetch error)
             return {
                 txCount: 0,

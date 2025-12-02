@@ -108,7 +108,10 @@ export default function HomeContent() {
                 const etherscanRes = await fetch(`/api/etherscan?address=${address}`);
                 if (etherscanRes.ok) {
                     const data = await etherscanRes.json();
+                    console.log('Etherscan Data:', data); // Debug log
                     statsData = data;
+                } else {
+                    console.error('Etherscan API Error:', await etherscanRes.text());
                 }
             } catch (e) {
                 console.error('Etherscan Fetch Error', e);
