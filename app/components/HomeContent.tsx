@@ -553,14 +553,7 @@ export default function HomeContent() {
                     </div>
                 )}
 
-                {/* DEBUG PANEL */}
-                <div className="bg-black text-green-400 p-4 text-[10px] font-mono w-full max-h-40 overflow-y-auto border-t border-gray-800">
-                    <h4 className="font-bold text-white mb-1">DEBUG LOGS:</h4>
-                    {logs.map((log, i) => (
-                        <div key={i}>{log}</div>
-                    ))}
-                    {mintError && <div className="text-red-500">Mint Error: {mintError.message}</div>}
-                </div>
+                {/* DEBUG PANEL REMOVED */}
             </div>
         </div>
     );
