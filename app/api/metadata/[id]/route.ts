@@ -14,9 +14,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const tokenId = params.id;
 
     try {
-        // 1. Read Core Identity Data from Contract (The "Snapshot" Truth)
-        let statsData: [string, bigint, bigint, bigint, string] | null = null;
+        // Try to read from contract first
         let owner = '';
+        let storedUsername = '';
+        let storedNeynarScore = BigInt(0);
+        let storedTxCount = BigInt(0);
+        let storedDaysActive = BigInt(0);
+        let storedMintDate = '';
+        let hasContractData = false;
 
         try {
             const [statsRes, ownerRes] = await Promise.all([
@@ -36,37 +41,65 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
                 })
             ]);
 
-            statsData = statsRes as [string, bigint, bigint, bigint, string];
+            const statsData = statsRes as [string, bigint, bigint, bigint, string];
             owner = ownerRes as string;
 
+            [storedUsername, storedNeynarScore, storedTxCount, storedDaysActive, storedMintDate] = statsData;
+
+            // Check if we have valid data (username is not empty)
+            if (storedUsername && storedUsername.trim() !== '') {
+                hasContractData = true;
+            }
+
         } catch (e) {
-            console.error('Contract read error:', e);
-            return NextResponse.json({ error: 'Token not found or contract error' }, { status: 404 });
+            console.log('Contract read failed, will use live data:', e);
+            // If contract read fails, we'll use live data below
         }
 
-        const [storedUsername, storedNeynarScore, storedTxCount, storedDaysActive, storedMintDate] = statsData;
+        // If no contract data, we need an address parameter
+        if (!hasContractData && !owner) {
+            const { searchParams } = new URL(req.url);
+            const addressParam = searchParams.get('address');
 
-        // 2. Fetch Rich Data from APIs
+            if (!addressParam) {
+                return NextResponse.json({
+                    error: 'Token not minted yet or address parameter required',
+                    hint: 'Use: /api/metadata/[id]?address=0x...'
+                }, { status: 404 });
+            }
+
+            owner = addressParam;
+        }
+
+        // Fetch live data from APIs
         const [neynarData, etherscanData, basenameData] = await Promise.all([
             getNeynarData(owner),
             getEtherscanData(owner),
             getBasenameData(owner)
         ]);
 
-        // 3. Construct Image URL Params (Hybrid: Stored + Live)
+        // Construct Image URL Params
         const imgParams = new URLSearchParams();
 
-        // A. Stored Stats (Priority)
-        imgParams.append('username', storedUsername || neynarData?.username || 'Explorer');
-        imgParams.append('score', (Number(storedNeynarScore) / 100).toString());
-        imgParams.append('txCount', storedTxCount.toString());
-        imgParams.append('daysActive', storedDaysActive.toString());
-        imgParams.append('date', storedMintDate);
+        // Use stored data if available, otherwise use live data
+        if (hasContractData) {
+            imgParams.append('username', storedUsername);
+            imgParams.append('score', (Number(storedNeynarScore) / 100).toString());
+            imgParams.append('txCount', storedTxCount.toString());
+            imgParams.append('daysActive', storedDaysActive.toString());
+            imgParams.append('date', storedMintDate);
+        } else {
+            imgParams.append('username', neynarData?.username || 'Explorer');
+            imgParams.append('score', (neynarData?.score || 0.5).toString());
+            imgParams.append('txCount', (etherscanData?.txCount || 0).toString());
+            imgParams.append('daysActive', (etherscanData?.daysActive || 0).toString());
+            imgParams.append('date', new Date().toISOString().split('T')[0]);
+        }
 
-        // B. Live/Rich Data (Complementary)
+        // Live/Rich Data (always from APIs)
+        imgParams.append('displayName', neynarData?.displayName || neynarData?.username || 'Explorer');
         imgParams.append('pfp', neynarData?.pfp || 'https://zora.co/assets/icon.png');
         imgParams.append('fid', (neynarData?.fid || 0).toString());
-        imgParams.append('displayName', neynarData?.displayName || neynarData?.username || 'Explorer');
         imgParams.append('isVerified', neynarData?.isVerified ? 'true' : 'false');
 
         if (basenameData?.basename) {
@@ -93,18 +126,22 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         const imageUrl = `${baseUrl}/api/image?${imgParams.toString()}`;
 
-        // 4. Return Metadata with Complete Attributes
+        // Determine username and mint date for metadata
+        const finalUsername = hasContractData ? storedUsername : (neynarData?.username || 'Explorer');
+        const finalMintDate = hasContractData ? storedMintDate : new Date().toISOString().split('T')[0];
+
+        // Return Metadata with Complete Attributes
         return NextResponse.json({
             name: `BasePrint #${tokenId}`,
-            description: `Onchain identity snapshot for ${storedUsername}. Minted on ${storedMintDate}. This NFT captures Farcaster profile data and Base chain activity at the moment of minting.`,
+            description: `Onchain identity snapshot for ${finalUsername}. ${hasContractData ? `Minted on ${finalMintDate}.` : 'Live preview.'} This NFT captures Farcaster profile data and Base chain activity.`,
             image: imageUrl,
             external_url: `${baseUrl}`,
             attributes: [
                 // Farcaster Identity
                 { trait_type: 'FID', value: neynarData?.fid || 0 },
-                { trait_type: 'Username', value: storedUsername },
-                { trait_type: 'Display Name', value: neynarData?.displayName || storedUsername },
-                { trait_type: 'Neynar Score', value: Number(storedNeynarScore) / 100 },
+                { trait_type: 'Username', value: finalUsername },
+                { trait_type: 'Display Name', value: neynarData?.displayName || finalUsername },
+                { trait_type: 'Neynar Score', value: hasContractData ? Number(storedNeynarScore) / 100 : (neynarData?.score || 0.5) },
                 { trait_type: 'Power Badge', value: neynarData?.isVerified ? 'Yes' : 'No' },
 
                 // Wallet Info
@@ -112,8 +149,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
                 { trait_type: 'Wallet Age (Days)', value: etherscanData?.walletAge || 0 },
 
                 // Activity Metrics
-                { trait_type: 'Active Days', value: Number(storedDaysActive) },
-                { trait_type: 'Total Transactions', value: Number(storedTxCount) },
+                { trait_type: 'Active Days', value: hasContractData ? Number(storedDaysActive) : (etherscanData?.daysActive || 0) },
+                { trait_type: 'Total Transactions', value: hasContractData ? Number(storedTxCount) : (etherscanData?.txCount || 0) },
                 { trait_type: 'Current Streak (Days)', value: etherscanData?.currentStreak || 0 },
                 { trait_type: 'Longest Streak (Days)', value: etherscanData?.longestStreak || 0 },
 
@@ -131,12 +168,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
                 { trait_type: 'Deployed Contracts', value: etherscanData?.deployed || 0 },
 
                 // Mint Info
-                { trait_type: 'Mint Date', value: storedMintDate },
+                { trait_type: 'Mint Date', value: finalMintDate },
+                { trait_type: 'Data Source', value: hasContractData ? 'On-chain Snapshot' : 'Live Data' },
             ]
         });
 
     } catch (error: any) {
         console.error('Metadata Error:', error);
-        return NextResponse.json({ error: 'Failed to generate metadata' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to generate metadata', details: error.message }, { status: 500 });
     }
 }
