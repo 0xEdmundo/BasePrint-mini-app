@@ -582,18 +582,6 @@ export default function HomeContent() {
                         )}
                     </div>
                 )}
-
-                {/* ADMIN TOOLS (Temporary) */}
-                {isConnected && (
-                    <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
-                        <button
-                            onClick={handleSetBaseURI}
-                            className="text-[10px] text-gray-400 hover:text-blue-500 font-mono underline"
-                        >
-                            [Admin: Set Base URI]
-                        </button>
-                    </div>
-                )}
             </div>
         </div >
     );
