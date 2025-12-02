@@ -10,7 +10,7 @@ import sdk from '@farcaster/frame-sdk';
 
 
 // --- 1. CONFIG & API KEYS ---
-const CONTRACT_ADDRESS = '0x685Ea8972b1f3E63Ab7c8826f3B53CaCD4737bB2';
+const CONTRACT_ADDRESS = '0x66fADf7f93A4407DD336C35cD09ccDA58559442b';
 
 // --- 2. ICONS ---
 const AppLogo = ({ className }: { className?: string }) => (
@@ -175,6 +175,24 @@ export default function HomeContent() {
                 dateStr,
             ],
             value: parseEther('0.0002'),
+        });
+    };
+
+    // Set the base metadata URI (owner only)
+    const handleSetBaseURI = () => {
+        writeContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: [
+                {
+                    name: 'setBaseURI',
+                    type: 'function',
+                    stateMutability: 'nonpayable',
+                    inputs: [{ name: '_newBaseURI', type: 'string' }],
+                    outputs: [],
+                },
+            ],
+            functionName: 'setBaseURI',
+            args: ['https://baseprint.vercel.app/api/metadata/'],
         });
     };
 
