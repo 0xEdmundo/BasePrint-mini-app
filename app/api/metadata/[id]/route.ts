@@ -15,12 +15,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     try {
         // 1. Read Core Identity Data from Contract (The "Snapshot" Truth)
-        // Contract uses 'stats' mapping with UserStats struct
         let statsData: [string, bigint, bigint, bigint, string] | null = null;
         let owner = '';
 
         try {
-            // Parallel fetch for efficiency
             const [statsRes, ownerRes] = await Promise.all([
                 client.readContract({
                     address: CONTRACT,
@@ -48,9 +46,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         const [storedUsername, storedNeynarScore, storedTxCount, storedDaysActive, storedMintDate] = statsData;
 
-        // 2. Fetch Rich Data from APIs (to fill in the gaps: PFP, Bridge, DeFi, etc.)
-        // We use the owner's address to fetch this.
-        // NOTE: This data is "live" or "current", but combined with the stored "snapshot" stats.
+        // 2. Fetch Rich Data from APIs
         const [neynarData, etherscanData, basenameData] = await Promise.all([
             getNeynarData(owner),
             getEtherscanData(owner),
@@ -70,6 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         // B. Live/Rich Data (Complementary)
         imgParams.append('pfp', neynarData?.pfp || 'https://zora.co/assets/icon.png');
         imgParams.append('fid', (neynarData?.fid || 0).toString());
+        imgParams.append('displayName', neynarData?.displayName || neynarData?.username || 'Explorer');
         imgParams.append('isVerified', neynarData?.isVerified ? 'true' : 'false');
 
         if (basenameData?.basename) {
@@ -77,38 +74,64 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         }
 
         if (etherscanData) {
-            // We use the live breakdown for these, as they aren't stored on-chain.
-            // This is a reasonable compromise to have a rich card.
             imgParams.append('walletAge', (etherscanData.walletAge || 0).toString());
-            imgParams.append('bridge', (etherscanData.bridge || 0).toString());
-            imgParams.append('defi', (etherscanData.defi || 0).toString());
+            imgParams.append('bridgeToEth', (etherscanData.bridgeToEth || 0).toString());
+            imgParams.append('bridgeFromEth', (etherscanData.bridgeFromEth || 0).toString());
+            imgParams.append('defiLend', (etherscanData.defiLend || 0).toString());
+            imgParams.append('defiBorrow', (etherscanData.defiBorrow || 0).toString());
+            imgParams.append('defiSwap', (etherscanData.defiSwap || 0).toString());
+            imgParams.append('defiStake', (etherscanData.defiStake || 0).toString());
             imgParams.append('deployed', (etherscanData.deployed || 0).toString());
-            imgParams.append('streak', (etherscanData.longestStreak || 0).toString());
+            imgParams.append('longestStreak', (etherscanData.longestStreak || 0).toString());
+            imgParams.append('currentStreak', (etherscanData.currentStreak || 0).toString());
         }
 
         // Use absolute URL for image generation
-        // Ensure VERCEL_URL is handled correctly (it doesn't include https://)
         const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
         const host = process.env.VERCEL_URL ? process.env.VERCEL_URL : 'localhost:3000';
         const baseUrl = `${protocol}://${host}`;
 
         const imageUrl = `${baseUrl}/api/image?${imgParams.toString()}`;
 
-        // 4. Return Metadata
+        // 4. Return Metadata with Complete Attributes
         return NextResponse.json({
             name: `BasePrint #${tokenId}`,
-            description: `Onchain identity snapshot for ${storedUsername}. Minted on ${storedMintDate}.`,
+            description: `Onchain identity snapshot for ${storedUsername}. Minted on ${storedMintDate}. This NFT captures Farcaster profile data and Base chain activity at the moment of minting.`,
             image: imageUrl,
             external_url: `${baseUrl}`,
             attributes: [
+                // Farcaster Identity
+                { trait_type: 'FID', value: neynarData?.fid || 0 },
                 { trait_type: 'Username', value: storedUsername },
+                { trait_type: 'Display Name', value: neynarData?.displayName || storedUsername },
                 { trait_type: 'Neynar Score', value: Number(storedNeynarScore) / 100 },
-                { trait_type: 'TX Count', value: Number(storedTxCount) },
+                { trait_type: 'Power Badge', value: neynarData?.isVerified ? 'Yes' : 'No' },
+
+                // Wallet Info
+                { trait_type: 'Wallet Address', value: owner },
+                { trait_type: 'Wallet Age (Days)', value: etherscanData?.walletAge || 0 },
+
+                // Activity Metrics
                 { trait_type: 'Active Days', value: Number(storedDaysActive) },
+                { trait_type: 'Total Transactions', value: Number(storedTxCount) },
+                { trait_type: 'Current Streak (Days)', value: etherscanData?.currentStreak || 0 },
+                { trait_type: 'Longest Streak (Days)', value: etherscanData?.longestStreak || 0 },
+
+                // Bridge Activity
+                { trait_type: 'Bridge: Base→ETH', value: etherscanData?.bridgeToEth || 0 },
+                { trait_type: 'Bridge: ETH→Base', value: etherscanData?.bridgeFromEth || 0 },
+
+                // DeFi Activity
+                { trait_type: 'DeFi: Lending', value: etherscanData?.defiLend || 0 },
+                { trait_type: 'DeFi: Borrowing', value: etherscanData?.defiBorrow || 0 },
+                { trait_type: 'DeFi: Swapping', value: etherscanData?.defiSwap || 0 },
+                { trait_type: 'DeFi: Staking', value: etherscanData?.defiStake || 0 },
+
+                // Developer Activity
+                { trait_type: 'Deployed Contracts', value: etherscanData?.deployed || 0 },
+
+                // Mint Info
                 { trait_type: 'Mint Date', value: storedMintDate },
-                { trait_type: 'Wallet Age', value: etherscanData?.walletAge || 0 },
-                { trait_type: 'Bridge Activity', value: etherscanData?.bridge || 0 },
-                { trait_type: 'DeFi Interactions', value: etherscanData?.defi || 0 },
             ]
         });
 

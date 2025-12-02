@@ -8,8 +8,13 @@ export async function getEtherscanData(address: string) {
         txCount: 0,
         daysActive: 0,
         longestStreak: 0,
-        bridge: 0,
-        defi: 0,
+        currentStreak: 0,
+        bridgeToEth: 0,
+        bridgeFromEth: 0,
+        defiLend: 0,
+        defiBorrow: 0,
+        defiSwap: 0,
+        defiStake: 0,
         deployed: 0,
         walletAge: 0,
     };
@@ -37,13 +42,10 @@ export async function getEtherscanData(address: string) {
         }
 
         const txData = await txRes.json();
-        // Internal txs might fail or be empty, treat as optional but log if error
         const internalTxData = internalTxRes.ok ? await internalTxRes.json() : { result: [] };
 
         if (txData.status !== '1' || !txData.result) {
-            // 'No transactions found' is a valid state (status 0), return defaults
             if (txData.message === 'No transactions found') return defaultStats;
-
             console.error('Etherscan API Error:', txData.message, txData.result);
             return defaultStats;
         }
@@ -60,7 +62,7 @@ export async function getEtherscanData(address: string) {
         const now = new Date();
         const walletAge = Math.floor((now.getTime() - firstTxDate.getTime()) / (1000 * 60 * 60 * 24));
 
-        // Active Days & Streak
+        // Active Days & Streaks
         const uniqueDays = new Set<string>();
         transactions.forEach((tx: any) => {
             const date = new Date(parseInt(tx.timeStamp) * 1000);
@@ -69,26 +71,61 @@ export async function getEtherscanData(address: string) {
         });
 
         const sortedDays = Array.from(uniqueDays).sort();
-        let longestStreak = 0;
-        let currentStreak = 1;
 
+        // Longest Streak
+        let longestStreak = 0;
+        let tempStreak = 1;
         for (let i = 1; i < sortedDays.length; i++) {
             const prevDate = new Date(sortedDays[i - 1]);
             const currDate = new Date(sortedDays[i]);
             const dayDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
 
             if (dayDiff === 1) {
-                currentStreak++;
+                tempStreak++;
             } else {
-                longestStreak = Math.max(longestStreak, currentStreak);
-                currentStreak = 1;
+                longestStreak = Math.max(longestStreak, tempStreak);
+                tempStreak = 1;
             }
         }
-        longestStreak = Math.max(longestStreak, currentStreak);
+        longestStreak = Math.max(longestStreak, tempStreak);
+
+        // Current Streak (from last tx date to today)
+        let currentStreak = 0;
+        if (sortedDays.length > 0) {
+            const lastTxDate = new Date(sortedDays[sortedDays.length - 1]);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            lastTxDate.setHours(0, 0, 0, 0);
+
+            const daysSinceLastTx = Math.floor((today.getTime() - lastTxDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            // If last tx was today or yesterday, calculate current streak
+            if (daysSinceLastTx <= 1) {
+                currentStreak = 1;
+                // Count backwards from last day
+                for (let i = sortedDays.length - 2; i >= 0; i--) {
+                    const prevDate = new Date(sortedDays[i]);
+                    const nextDate = new Date(sortedDays[i + 1]);
+                    prevDate.setHours(0, 0, 0, 0);
+                    nextDate.setHours(0, 0, 0, 0);
+                    const dayDiff = Math.floor((nextDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                    if (dayDiff === 1) {
+                        currentStreak++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
 
         // Categories
-        let bridge = 0;
-        let defi = 0;
+        let bridgeToEth = 0;
+        let bridgeFromEth = 0;
+        let defiLend = 0;
+        let defiBorrow = 0;
+        let defiSwap = 0;
+        let defiStake = 0;
         let deployed = 0;
 
         // Base L2 Standard Bridge Address
@@ -107,45 +144,62 @@ export async function getEtherscanData(address: string) {
             }
 
             // Bridge Detection (Outgoing: Base -> L1)
-            // Check if interacting with L2 Standard Bridge
             if (to === L2_STANDARD_BRIDGE) {
-                bridge++;
+                bridgeToEth++;
             } else if (
                 functionName.includes('withdraw') ||
                 functionName.includes('bridge')
             ) {
-                // Heuristic for other bridge interactions
                 if (functionName.includes('bridge') || to === '0x49048044d57e1c92a77f79988d21fa8faf74e97e') {
-                    bridge++;
+                    bridgeToEth++;
                 }
             }
 
-            // DeFi Detection
-            if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') { // Exclude simple transfer
+            // DeFi Detection - Categorized
+            if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') {
+                // Lending/Supply
                 if (
-                    functionName.includes('swap') ||
-                    functionName.includes('stake') ||
-                    functionName.includes('mint') ||
+                    functionName.includes('lend') ||
                     functionName.includes('supply') ||
-                    functionName.includes('borrow') ||
-                    functionName.includes('repay') ||
-                    functionName.includes('harvest') ||
-                    functionName.includes('claim') ||
-                    functionName.includes('deposit') // Deposit to DeFi protocols
+                    functionName.includes('deposit') && (
+                        functionName.includes('aave') ||
+                        functionName.includes('compound') ||
+                        functionName.includes('pool')
+                    )
                 ) {
-                    defi++;
-                } else if (!functionName && methodId) {
-                    // Heuristic: If it has a methodId but no name, and it's not a simple transfer, count as interaction
-                    defi++;
+                    defiLend++;
+                }
+                // Borrowing
+                else if (
+                    functionName.includes('borrow') ||
+                    functionName.includes('repay')
+                ) {
+                    defiBorrow++;
+                }
+                // Swapping
+                else if (
+                    functionName.includes('swap') ||
+                    functionName.includes('exchange') ||
+                    functionName.includes('trade')
+                ) {
+                    defiSwap++;
+                }
+                // Staking/Farming
+                else if (
+                    functionName.includes('stake') ||
+                    functionName.includes('farm') ||
+                    functionName.includes('harvest') ||
+                    functionName.includes('claim') && !functionName.includes('reclaim')
+                ) {
+                    defiStake++;
                 }
             }
         });
 
         // 2. Analyze Internal Transactions (Incoming: L1 -> Base)
-        // Deposits from L1 usually appear as internal transactions FROM the L2 Bridge
         internalTxs.forEach((tx: any) => {
             if (tx.from.toLowerCase() === L2_STANDARD_BRIDGE) {
-                bridge++;
+                bridgeFromEth++;
             }
         });
 
@@ -153,8 +207,13 @@ export async function getEtherscanData(address: string) {
             txCount,
             daysActive: uniqueDays.size,
             longestStreak,
-            bridge,
-            defi,
+            currentStreak,
+            bridgeToEth,
+            bridgeFromEth,
+            defiLend,
+            defiBorrow,
+            defiSwap,
+            defiStake,
             deployed,
             walletAge,
         };
@@ -192,24 +251,21 @@ export async function getNeynarData(address: string) {
         const user = data[address.toLowerCase()][0];
 
         // Use native score if available
-        // Neynar returns score as 0-1.0 decimal usually, or sometimes 0-100 in experimental
         let score = 0;
-
         if (typeof user.score === 'number') {
-            score = user.score; // Assuming 0-1.0
+            score = user.score;
         } else if (user.experimental?.score) {
-            score = user.experimental.score; // Check range, if > 1 assume 0-100 and normalize
+            score = user.experimental.score;
             if (score > 1) score = score / 100;
         } else {
-            // Fallback if no score field exists at all (should be rare for active users)
             score = 0.5;
         }
 
-        // Ensure score is within 0-1 range
         score = Math.max(0, Math.min(1, score));
 
         return {
             username: user.username || 'Explorer',
+            displayName: user.display_name || user.username || 'Explorer',
             pfp: user.pfp_url || '',
             score: parseFloat(score.toFixed(2)),
             fid: user.fid || 0,
