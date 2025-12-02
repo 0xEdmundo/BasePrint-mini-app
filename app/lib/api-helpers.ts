@@ -83,22 +83,54 @@ export async function getEtherscanData(address: string) {
         let defi = 0;
         let deployed = 0;
 
-        const bridgeAddresses = [
-            '0x49048044d57e1c92a77f79988d21fa8faf74e97e', // Base Bridge
-            '0x3154cf16ccdb4c6d922629664174b904d80f2c35', // Base Portal
-        ];
-
-        const defiAddresses = [
-            '0x4200000000000000000000000000000000000006', // WETH
-            '0x50c5725949a6f0c72e6c4a641f24049a917db0cb', // Aerodrome
-            '0x8909dc15e40173ff4699343b6eb8132c65e18ec6', // Uniswap V3
-        ];
+        const L2_STANDARD_BRIDGE = '0x4200000000000000000000000000000000000010';
 
         transactions.forEach((tx: any) => {
             const to = tx.to?.toLowerCase();
-            if (bridgeAddresses.includes(to)) bridge++;
-            if (defiAddresses.includes(to)) defi++;
-            if (tx.to === '' && tx.contractAddress !== '') deployed++;
+            const functionName = tx.functionName ? tx.functionName.toLowerCase() : '';
+            const methodId = tx.methodId || (tx.input && tx.input.length >= 10 ? tx.input.substring(0, 10) : null);
+
+            // Contract Deployment
+            if (tx.to === '' && tx.contractAddress !== '') {
+                deployed++;
+                return;
+            }
+
+            // Bridge Detection
+            if (to === L2_STANDARD_BRIDGE) {
+                bridge++;
+            } else if (
+                functionName.includes('withdraw') ||
+                functionName.includes('deposit') ||
+                functionName.includes('finalizebridge') ||
+                functionName.includes('bridge')
+            ) {
+                if (functionName.includes('bridge') || to === '0x49048044d57e1c92a77f79988d21fa8faf74e97e') { // Base Bridge
+                    bridge++;
+                }
+            }
+
+            // DeFi / Interaction Detection
+            // Check for common DeFi method signatures or names
+            if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') { // Exclude simple transfer
+                if (
+                    functionName.includes('supply') ||
+                    functionName.includes('borrow') ||
+                    functionName.includes('stake') ||
+                    functionName.includes('swap') ||
+                    functionName.includes('vote') ||
+                    functionName.includes('propose') ||
+                    functionName.includes('mint') ||
+                    functionName.includes('deposit') ||
+                    functionName.includes('approve') ||
+                    functionName.includes('execute')
+                ) {
+                    defi++;
+                } else if (!functionName && methodId) {
+                    // If no function name but has methodId, assume interaction (likely DeFi/Contract)
+                    defi++;
+                }
+            }
         });
 
         return {
@@ -145,15 +177,15 @@ export async function getNeynarData(address: string) {
         const followerCount = user.follower_count || 0;
         const followingCount = user.following_count || 0;
 
+        // Robust Score Calculation
         let score = 0.5;
-        // Use experimental score if available (assuming 0-100 scale, normalize to 0-1)
-        if (user.score) {
-            score = user.score / 100;
-        } else {
-            if (followerCount > 0) score += Math.min(followerCount / 1000, 0.3);
-            if (followingCount > 0) score += Math.min(followingCount / 500, 0.1);
-            if (user.power_badge) score += 0.1;
-        }
+        if (followerCount > 0) score += Math.min(followerCount / 5000, 0.3); // Cap at 0.3 for 5k followers
+        if (followingCount > 0) score += Math.min(followingCount / 1000, 0.1); // Cap at 0.1 for 1k following
+        if (user.power_badge) score += 0.1;
+
+        // Bonus for active badge or other stats if available
+        if (user.active_status === 'active') score += 0.05;
+
         score = Math.min(score, 1.0);
 
         return {
