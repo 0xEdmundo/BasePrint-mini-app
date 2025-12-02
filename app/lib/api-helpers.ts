@@ -1,11 +1,7 @@
-import { createPublicClient, http, parseAbi } from 'viem';
-import { base } from 'viem/chains';
-
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || '';
 const BASE_ETHERSCAN_API = 'https://api.etherscan.io/v2/api';
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
 
-// --- ETHERSCAN DATA ---
 // --- ETHERSCAN DATA ---
 export async function getEtherscanData(address: string) {
     const defaultStats = {
@@ -26,24 +22,36 @@ export async function getEtherscanData(address: string) {
     }
 
     try {
+        // Fetch Normal and Internal Transactions in parallel (Base Chain ID: 8453)
         const txListUrl = `${BASE_ETHERSCAN_API}?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
-        const txRes = await fetch(txListUrl, { next: { revalidate: 60 } }); // Cache for 60s
+        const internalTxUrl = `${BASE_ETHERSCAN_API}?chainid=8453&module=account&action=txlistinternal&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
+
+        const [txRes, internalTxRes] = await Promise.all([
+            fetch(txListUrl, { next: { revalidate: 60 } }),
+            fetch(internalTxUrl, { next: { revalidate: 60 } })
+        ]);
 
         if (!txRes.ok) {
-            console.error(`BaseScan API HTTP Error: ${txRes.status}`);
+            console.error(`Etherscan API HTTP Error: ${txRes.status}`);
             return defaultStats;
         }
 
         const txData = await txRes.json();
+        // Internal txs might fail or be empty, treat as optional but log if error
+        const internalTxData = internalTxRes.ok ? await internalTxRes.json() : { result: [] };
 
         if (txData.status !== '1' || !txData.result) {
-            console.error('BaseScan API Error/Status:', txData.message, txData.result);
+            // 'No transactions found' is a valid state (status 0), return defaults
+            if (txData.message === 'No transactions found') return defaultStats;
+
+            console.error('Etherscan API Error:', txData.message, txData.result);
             return defaultStats;
         }
 
         const transactions = txData.result;
-        const txCount = transactions.length;
+        const internalTxs = Array.isArray(internalTxData.result) ? internalTxData.result : [];
 
+        const txCount = transactions.length;
         if (txCount === 0) return defaultStats;
 
         // Wallet Age
@@ -83,8 +91,10 @@ export async function getEtherscanData(address: string) {
         let defi = 0;
         let deployed = 0;
 
+        // Base L2 Standard Bridge Address
         const L2_STANDARD_BRIDGE = '0x4200000000000000000000000000000000000010';
 
+        // 1. Analyze Normal Transactions
         transactions.forEach((tx: any) => {
             const to = tx.to?.toLowerCase();
             const functionName = tx.functionName ? tx.functionName.toLowerCase() : '';
@@ -96,40 +106,46 @@ export async function getEtherscanData(address: string) {
                 return;
             }
 
-            // Bridge Detection
+            // Bridge Detection (Outgoing: Base -> L1)
+            // Check if interacting with L2 Standard Bridge
             if (to === L2_STANDARD_BRIDGE) {
                 bridge++;
             } else if (
                 functionName.includes('withdraw') ||
-                functionName.includes('deposit') ||
-                functionName.includes('finalizebridge') ||
                 functionName.includes('bridge')
             ) {
-                if (functionName.includes('bridge') || to === '0x49048044d57e1c92a77f79988d21fa8faf74e97e') { // Base Bridge
+                // Heuristic for other bridge interactions
+                if (functionName.includes('bridge') || to === '0x49048044d57e1c92a77f79988d21fa8faf74e97e') {
                     bridge++;
                 }
             }
 
-            // DeFi / Interaction Detection
-            // Check for common DeFi method signatures or names
+            // DeFi Detection
             if (methodId && methodId !== '0x' && methodId !== '0xa9059cbb') { // Exclude simple transfer
                 if (
+                    functionName.includes('swap') ||
+                    functionName.includes('stake') ||
+                    functionName.includes('mint') ||
                     functionName.includes('supply') ||
                     functionName.includes('borrow') ||
-                    functionName.includes('stake') ||
-                    functionName.includes('swap') ||
-                    functionName.includes('vote') ||
-                    functionName.includes('propose') ||
-                    functionName.includes('mint') ||
-                    functionName.includes('deposit') ||
-                    functionName.includes('approve') ||
-                    functionName.includes('execute')
+                    functionName.includes('repay') ||
+                    functionName.includes('harvest') ||
+                    functionName.includes('claim') ||
+                    functionName.includes('deposit') // Deposit to DeFi protocols
                 ) {
                     defi++;
                 } else if (!functionName && methodId) {
-                    // If no function name but has methodId, assume interaction (likely DeFi/Contract)
+                    // Heuristic: If it has a methodId but no name, and it's not a simple transfer, count as interaction
                     defi++;
                 }
+            }
+        });
+
+        // 2. Analyze Internal Transactions (Incoming: L1 -> Base)
+        // Deposits from L1 usually appear as internal transactions FROM the L2 Bridge
+        internalTxs.forEach((tx: any) => {
+            if (tx.from.toLowerCase() === L2_STANDARD_BRIDGE) {
+                bridge++;
             }
         });
 
@@ -174,19 +190,23 @@ export async function getNeynarData(address: string) {
         }
 
         const user = data[address.toLowerCase()][0];
-        const followerCount = user.follower_count || 0;
-        const followingCount = user.following_count || 0;
 
-        // Robust Score Calculation
-        let score = 0.5;
-        if (followerCount > 0) score += Math.min(followerCount / 5000, 0.3); // Cap at 0.3 for 5k followers
-        if (followingCount > 0) score += Math.min(followingCount / 1000, 0.1); // Cap at 0.1 for 1k following
-        if (user.power_badge) score += 0.1;
+        // Use native score if available
+        // Neynar returns score as 0-1.0 decimal usually, or sometimes 0-100 in experimental
+        let score = 0;
 
-        // Bonus for active badge or other stats if available
-        if (user.active_status === 'active') score += 0.05;
+        if (typeof user.score === 'number') {
+            score = user.score; // Assuming 0-1.0
+        } else if (user.experimental?.score) {
+            score = user.experimental.score; // Check range, if > 1 assume 0-100 and normalize
+            if (score > 1) score = score / 100;
+        } else {
+            // Fallback if no score field exists at all (should be rare for active users)
+            score = 0.5;
+        }
 
-        score = Math.min(score, 1.0);
+        // Ensure score is within 0-1 range
+        score = Math.max(0, Math.min(1, score));
 
         return {
             username: user.username || 'Explorer',
