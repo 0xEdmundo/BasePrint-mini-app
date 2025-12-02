@@ -119,10 +119,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             imgParams.append('currentStreak', (etherscanData.currentStreak || 0).toString());
         }
 
-        // Use absolute URL for image generation
-        const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
-        const host = process.env.VERCEL_URL ? process.env.VERCEL_URL : 'localhost:3000';
-        const baseUrl = `${protocol}://${host}`;
+        // Use absolute URL for image generation - always use production domain
+        const baseUrl = process.env.NODE_ENV === 'development'
+            ? 'http://localhost:3000'
+            : 'https://baseprint.vercel.app';
 
         const imageUrl = `${baseUrl}/api/image?${imgParams.toString()}`;
 

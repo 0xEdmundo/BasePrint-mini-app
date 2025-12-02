@@ -105,7 +105,14 @@ export default function HomeContent() {
                 txCount: 0,
                 daysActive: 0,
                 longestStreak: 0,
+                currentStreak: 0,
+                bridgeToEth: 0,
+                bridgeFromEth: 0,
                 bridge: 0,
+                defiLend: 0,
+                defiBorrow: 0,
+                defiSwap: 0,
+                defiStake: 0,
                 defi: 0,
                 deployed: 0,
                 walletAge: 0,
@@ -118,7 +125,12 @@ export default function HomeContent() {
                     const data = await etherscanRes.json();
                     addLog(`Etherscan Raw: ${JSON.stringify(data).slice(0, 100)}`); // Debug full JSON
                     if (data.txCount !== undefined) {
-                        statsData = data;
+                        statsData = {
+                            ...data,
+                            // Backward compatibility: calculate totals
+                            bridge: (data.bridgeToEth || 0) + (data.bridgeFromEth || 0),
+                            defi: (data.defiLend || 0) + (data.defiBorrow || 0) + (data.defiSwap || 0) + (data.defiStake || 0),
+                        };
                         addLog(`Etherscan success: TXs=${data.txCount}`);
                     } else {
                         addLog('Etherscan data missing txCount');
@@ -164,7 +176,14 @@ export default function HomeContent() {
                 txCount: 0,
                 daysActive: 0,
                 longestStreak: 0,
+                currentStreak: 0,
+                bridgeToEth: 0,
+                bridgeFromEth: 0,
                 bridge: 0,
+                defiLend: 0,
+                defiBorrow: 0,
+                defiSwap: 0,
+                defiStake: 0,
                 defi: 0,
                 deployed: 0,
                 walletAge: 0,
