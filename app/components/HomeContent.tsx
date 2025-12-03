@@ -324,8 +324,8 @@ export default function HomeContent() {
         if (!mintedTokenId) return;
 
         // Use root domain with tokenId for Farcaster Mini App embed
-        // This ensures Farcaster recognizes it as a Mini App embed
-        const shareUrl = `https://baseprint.vercel.app/?tokenId=${mintedTokenId}`;
+        // Add timestamp to bypass Farcaster's cache
+        const shareUrl = `https://baseprint.vercel.app/?tokenId=${mintedTokenId}&t=${Date.now()}`;
         const castText = `Just minted my BasePrint ID! 🎨`;
 
         // Open Warpcast composer with the share URL as embed (not in text)
