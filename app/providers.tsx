@@ -25,9 +25,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const load = async () => {
       try {
-        // Wait for SDK context to be available
-        const context = await sdk.context;
-        console.log('Farcaster SDK context loaded:', context);
+        // Race between context and a timeout to ensure we always call ready()
+        // Base App might not provide context immediately or at all in some states
+        const contextPromise = sdk.context;
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const result = await Promise.race([contextPromise, timeoutPromise]);
+
+        if (result && (result as any).user) {
+          console.log('Farcaster SDK context loaded:', result);
+        } else {
+          console.log('SDK context load timed out or empty, proceeding anyway');
+        }
 
         // Signal to the Farcaster/Base App client that the frame is ready
         sdk.actions.ready();
@@ -36,7 +45,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         setIsSDKLoaded(true);
       } catch (error) {
         console.error('Failed to load SDK context:', error);
-        // Still mark as loaded to prevent blocking the UI
+        // Ensure we still call ready even on error
+        sdk.actions.ready();
         setIsSDKLoaded(true);
       }
     };
