@@ -53,6 +53,20 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     }
   }
 
+  // Create Mini App Embed for Farcaster
+  const miniAppEmbed = searchParams.tokenId ? {
+    imageUrl: ogImageUrl,
+    button: {
+      title: 'View my BasePrint ID',
+      action: {
+        type: 'launch_miniapp',
+        url: `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${searchParams.tokenId}`,
+        name: 'BasePrint',
+        splashImageUrl: ogImageUrl
+      }
+    }
+  } : null;
+
   return {
     title: title,
     description: description,
@@ -72,7 +86,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     other: {
       // Required: og:image for Farcaster to recognize the frame
       'og:image': ogImageUrl,
-      // Farcaster Frame metadata
+      // Farcaster Mini App Embed (for dynamic NFT previews)
+      ...(miniAppEmbed ? { 'fc:miniapp': JSON.stringify(miniAppEmbed) } : {}),
+      // Farcaster Frame metadata (backward compatibility)
       'fc:frame': 'vNext',
       'fc:frame:image': ogImageUrl,
       'fc:frame:image:aspect_ratio': '1.91:1',
