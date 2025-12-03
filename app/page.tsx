@@ -72,9 +72,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     other: {
       'fc:frame': 'vNext',
       'fc:frame:image': ogImageUrl,
-      'fc:frame:button:1': 'Mint BasePrint ID',
+      'fc:frame:button:1': searchParams.tokenId ? 'View in App' : 'Mint BasePrint ID',
       'fc:frame:button:1:action': 'link',
-      'fc:frame:button:1:target': 'https://baseprint.vercel.app',
+      'fc:frame:button:1:target': searchParams.tokenId
+        ? `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${searchParams.tokenId}`
+        : 'https://baseprint.vercel.app',
     },
   };
 }
