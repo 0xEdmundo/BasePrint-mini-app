@@ -331,7 +331,7 @@ export default function HomeContent() {
             ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
             : 'https://baseprint.vercel.app';
 
-        const nftImageUrl = `${host}/api/nft-image/${mintedTokenId}`;
+        const nftImageUrl = nftImage || `https://baseprint.vercel.app/api/metadata/${mintedTokenId}`;
 
         // Farcaster Mini App link with tokenId parameter
         // This will show the fc:miniapp metadata (icon + "View BasePrint" button)
