@@ -68,29 +68,14 @@ export default function HomeContent() {
     const [isFrameContext, setIsFrameContext] = useState(false);
 
     // Initialize Farcaster SDK and handle splash
-    // Initialize Farcaster SDK and handle splash
     useEffect(() => {
         const init = async () => {
-            try {
-                // Race between context and a timeout
-                // Base App might not provide context immediately
-                const contextPromise = sdk.context;
-                const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 1000));
-
-                const result = await Promise.race([contextPromise, timeoutPromise]);
-
-                if (result && (result as any).user) {
-                    console.log('Farcaster Context User:', (result as any).user);
-                    setIsFrameContext(true);
-                } else {
-                    console.log('Context load timed out or empty in HomeContent');
-                }
-            } catch (e) {
-                console.error('Error loading context in HomeContent:', e);
-            } finally {
-                // Always hide splash screen
-                setTimeout(() => setShowSplash(false), 500);
+            const context = await sdk.context;
+            if (context?.user) {
+                console.log('Farcaster Context User:', context.user);
+                setIsFrameContext(true);
             }
+            setTimeout(() => setShowSplash(false), 1500);
         };
         init();
 
