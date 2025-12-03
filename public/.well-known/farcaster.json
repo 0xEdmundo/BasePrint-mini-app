@@ -9,8 +9,8 @@
     "name": "BasePrint",
     "iconUrl": "https://baseprint.vercel.app/farcaster-icon.png",
     "homeUrl": "https://baseprint.vercel.app",
-    "imageUrl": "https://baseprint.vercel.app/opengraph-image.png",
-    "buttonTitle": "Mint Your ID",
+    "imageUrl": "https://baseprint.vercel.app/farcaster-icon.png",
+    "buttonTitle": "View BasePrint",
     "splashImageUrl": "https://baseprint.vercel.app/opengraph-image.png",
     "splashBackgroundColor": "#0052FF",
     "webhookUrl": "https://baseprint.vercel.app/api/webhook"
