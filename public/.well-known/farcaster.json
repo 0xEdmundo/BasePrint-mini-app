@@ -4,6 +4,9 @@
     "payload": "eyJkb21haW4iOiJiYXNlcHJpbnQudmVyY2VsLmFwcCJ9",
     "signature": "gOsyTGUPcLOJCvnK+VA5xwa3vujgL03N5Q5os7VNTQlMZ4aINCNxXpYh6VmkkibUAKYjne30GQv7/SV5xPkMwhs="
   },
+  "baseBuilder": {
+    "ownerAddress": "0xd254705b68A494AB6565173689eDB83CAEB420d3"
+  },
   "frame": {
     "version": "1",
     "name": "BasePrint",
