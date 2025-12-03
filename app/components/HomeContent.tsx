@@ -326,16 +326,24 @@ export default function HomeContent() {
     const handleShareOnFarcaster = async () => {
         if (!mintedTokenId) return;
 
+        // Get the NFT image URL
+        const host = process.env.NEXT_PUBLIC_VERCEL_URL
+            ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+            : 'https://baseprint.vercel.app';
+
+        const nftImageUrl = `${host}/api/nft-image/${mintedTokenId}`;
+
         // Farcaster Mini App link with tokenId parameter
         // This will show the fc:miniapp metadata (icon + "View BasePrint" button)
         const miniAppLink = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${mintedTokenId}`;
 
-        const castText = `Just minted my BasePrint ID! 🎨`;
+        const castText = `Query your BasePrint ID, your on-chain ID card that combines your Farcaster asset, Neynar score, and Base wallet activity into a single immutable NFT.`;
 
         // Open Warpcast composer with:
         // - Cast text
-        // - Mini App link as embed (will show icon and "View BasePrint" button from fc:miniapp metadata)
-        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(miniAppLink)}`;
+        // - NFT image as first embed
+        // - Mini App link as second embed (will show icon and "View BasePrint" button from fc:miniapp metadata)
+        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(nftImageUrl)}&embeds[]=${encodeURIComponent(miniAppLink)}`;
 
         sdk.actions.openUrl(warpcastUrl);
     };
@@ -632,9 +640,21 @@ export default function HomeContent() {
 
                                 {/* --- ACTION BUTTON (MINT or SHARE) --- */}
                                 {mintedTokenId ? (
-                                    <div className="w-full flex flex-col items-center gap-4">
+                                    <div className="w-full bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6 shadow-lg border border-green-200/50">
+                                        {/* Congratulations Header */}
+                                        <div className="text-center mb-4">
+                                            <div className="text-4xl mb-2">🎉</div>
+                                            <h3 className="text-2xl font-black text-slate-900 mb-1">
+                                                {urlTokenId ? 'BasePrint ID' : 'Congratulations!'}
+                                            </h3>
+                                            <p className="text-sm text-gray-600">
+                                                {urlTokenId ? `Viewing Token #${mintedTokenId}` : `You've minted BasePrint #${mintedTokenId}`}
+                                            </p>
+                                        </div>
+
+                                        {/* NFT Image */}
                                         {nftImage && (
-                                            <div className="relative w-64 h-64 rounded-xl overflow-hidden shadow-2xl border-4 border-white/10">
+                                            <div className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border-4 border-white mb-4">
                                                 <img
                                                     src={nftImage}
                                                     alt={`BasePrint #${mintedTokenId}`}
@@ -642,12 +662,8 @@ export default function HomeContent() {
                                                 />
                                             </div>
                                         )}
-                                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center w-full">
-                                            <p className="text-green-400 font-bold text-lg mb-1">
-                                                {urlTokenId ? 'Viewing BasePrint ID' : 'Mint Successful!'}
-                                            </p>
-                                            <p className="text-gray-400 text-sm">Token ID: #{mintedTokenId}</p>
-                                        </div>
+
+                                        {/* Share Button */}
                                         <button
                                             onClick={handleShareOnFarcaster}
                                             className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
