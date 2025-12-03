@@ -30,7 +30,7 @@ export default function RootLayout({
 }) {
   const miniAppEmbed = {
     version: '1',
-    imageUrl: 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed',
+    imageUrl: 'https://baseprint.vercel.app/opengraph-image.png',
     button: {
       title: 'View BasePrint',
       action: {
