@@ -32,27 +32,46 @@ export async function GET(req: NextRequest) {
     }
 
     // Return HTML with Farcaster Frame metadata
-    const html = `
-<!DOCTYPE html>
-<html>
-  <head>
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BasePrint – Onchain Identity Card</title>
+    
+    <!-- Open Graph -->
     <meta property="og:title" content="BasePrint – Onchain Identity Card" />
     <meta property="og:description" content="Turn your Farcaster profile into an onchain ID card" />
     <meta property="og:image" content="${imageUrl}" />
+    
+    <!-- Farcaster Frame (using both property and name for compatibility) -->
     <meta property="fc:frame" content="vNext" />
+    <meta name="fc:frame" content="vNext" />
     <meta property="fc:frame:image" content="${imageUrl}" />
+    <meta name="fc:frame:image" content="${imageUrl}" />
     <meta property="fc:frame:image:aspect_ratio" content="1.91:1" />
+    <meta name="fc:frame:image:aspect_ratio" content="1.91:1" />
     <meta property="fc:frame:button:1" content="${buttonText}" />
+    <meta name="fc:frame:button:1" content="${buttonText}" />
     <meta property="fc:frame:button:1:action" content="link" />
+    <meta name="fc:frame:button:1:action" content="link" />
     <meta property="fc:frame:button:1:target" content="${buttonTarget}" />
-  </head>
-  <body>
-    <h1>BasePrint</h1>
-    <p>Redirecting to app...</p>
+    <meta name="fc:frame:button:1:target" content="${buttonTarget}" />
+</head>
+<body style="font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div style="text-align: center; color: white;">
+        <h1 style="font-size: 2rem; margin-bottom: 1rem;">BasePrint</h1>
+        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Redirecting to app...</p>
+        <a href="${buttonTarget}" style="background: white; color: #667eea; padding: 1rem 2rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; display: inline-block;">
+            ${buttonText}
+        </a>
+    </div>
     <script>
-      window.location.href = '${buttonTarget}';
+        setTimeout(() => {
+            window.location.href = '${buttonTarget}';
+        }, 2000);
     </script>
-  </body>
+</body>
 </html>`;
 
     return new NextResponse(html, {
