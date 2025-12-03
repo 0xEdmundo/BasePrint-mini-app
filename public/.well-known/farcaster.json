@@ -19,6 +19,14 @@
     "description": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
     "ogTitle": "BasePrint Identity",
     "ogDescription": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
-    "ogImageUrl": "https://baseprint.vercel.app/opengraph-image.png"
+    "ogImageUrl": "https://baseprint.vercel.app/opengraph-image.png",
+    "primaryCategory": "social",
+    "tags": [
+      "identity",
+      "onchain",
+      "profile",
+      "nft",
+      "base"
+    ]
   }
 }
