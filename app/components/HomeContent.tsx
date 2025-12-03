@@ -323,28 +323,20 @@ export default function HomeContent() {
     const handleShareOnFarcaster = async () => {
         if (!mintedTokenId) return;
 
-        // Get the NFT image URL
-        const host = process.env.NEXT_PUBLIC_VERCEL_URL
-            ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-            : 'https://baseprint.vercel.app';
-
-        const nftImageUrl = `${host}/api/nft-image/${mintedTokenId}`;
-
-        // Farcaster Mini App link (will show icon from farcaster.json and "View BasePrint" button)
-        const miniAppLink = 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint';
+        // Farcaster Mini App link with tokenId parameter
+        // This will show the fc:miniapp metadata (icon + "View BasePrint" button)
+        const miniAppLink = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${mintedTokenId}`;
 
         const castText = `Just minted my BasePrint ID! 🎨`;
 
         // Open Warpcast composer with:
         // - Cast text
-        // - NFT image as attachment (embeds[0])
-        // - Mini App link (embeds[1]) - will show with icon and "View BasePrint" button
-        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(nftImageUrl)}&embeds[]=${encodeURIComponent(miniAppLink)}`;
+        // - Mini App link as embed (will show icon and "View BasePrint" button from fc:miniapp metadata)
+        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(miniAppLink)}`;
 
         sdk.actions.openUrl(warpcastUrl);
     };
 
-    // Set the base metadata URI (owner only)
     const handleSetBaseURI = () => {
         writeContract({
             address: CONTRACT_ADDRESS as `0x${string}`,
