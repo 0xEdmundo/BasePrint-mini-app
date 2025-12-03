@@ -21,19 +21,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  other: {
-    'fc:miniapp': JSON.stringify({
-      version: '1',
-      imageUrl: 'https://baseprint.vercel.app/opengraph-image.png',
-      button: {
-        title: 'View BasePrint',
-        action: {
-          type: 'launch_frame',
-          url: 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint'
-        }
-      }
-    }),
-  },
 };
 
 export default function RootLayout({
@@ -41,8 +28,23 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const miniAppEmbed = {
+    version: '1',
+    imageUrl: 'https://baseprint.vercel.app/opengraph-image.png',
+    button: {
+      title: 'View BasePrint',
+      action: {
+        type: 'launch_frame',
+        url: 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint'
+      }
+    }
+  };
+
+  const miniAppMetaTag = `<meta property="fc:miniapp" content='${JSON.stringify(miniAppEmbed).replace(/'/g, "&#39;")}' />`;
+
   return (
     <html lang="en">
+      <head dangerouslySetInnerHTML={{ __html: miniAppMetaTag }} />
       <body>
         <Providers>{children}</Providers>
       </body>
