@@ -57,7 +57,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   // Always return metadata to ensure Home URL Embed works
   const miniAppEmbed = {
     version: '1',
-    imageUrl: 'https://baseprint.vercel.app/farcaster-icon.png',
+    imageUrl: ogImageUrl,
     button: {
       title: 'View BasePrint',
       action: {
