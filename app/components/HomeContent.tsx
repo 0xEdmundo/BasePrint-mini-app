@@ -324,7 +324,10 @@ export default function HomeContent() {
 
     // Share on Farcaster
     const handleShareOnFarcaster = async () => {
-        if (!mintedTokenId) return;
+        if (!mintedTokenId || !nftImage) {
+            console.error('Cannot share: missing tokenId or NFT image');
+            return;
+        }
 
         // Get the NFT image URL
         const host = process.env.NEXT_PUBLIC_VERCEL_URL
@@ -658,7 +661,7 @@ export default function HomeContent() {
                                                 <img
                                                     src={nftImage}
                                                     alt={`BasePrint #${mintedTokenId}`}
-                                                    className="w-full h-full object-cover"
+                                                    className="w-full h-full object-contain"
                                                 />
                                             </div>
                                         )}
