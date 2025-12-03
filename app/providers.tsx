@@ -24,15 +24,24 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const load = async () => {
-      // Signal to the Farcaster client that the frame is ready
-      sdk.actions.ready();
+      try {
+        // Wait for SDK context to be available
+        const context = await sdk.context;
+        console.log('Farcaster SDK context loaded:', context);
+
+        // Signal to the Farcaster/Base App client that the frame is ready
+        sdk.actions.ready();
+        console.log('SDK ready signal sent');
+
+        setIsSDKLoaded(true);
+      } catch (error) {
+        console.error('Failed to load SDK context:', error);
+        // Still mark as loaded to prevent blocking the UI
+        setIsSDKLoaded(true);
+      }
     };
 
-    // Call ready immediately on mount
     load();
-
-    // Optional: You could wait for context here if needed
-    setIsSDKLoaded(true);
   }, []);
 
   return (
