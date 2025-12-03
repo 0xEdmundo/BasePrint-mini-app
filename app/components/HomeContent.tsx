@@ -323,9 +323,9 @@ export default function HomeContent() {
     const handleShareOnFarcaster = () => {
         if (!mintedTokenId) return;
 
-        // Include address in share URL to ensure metadata can be generated even if indexing is slow
-        // Use query param format for better Mini App compatibility
-        const shareUrl = `https://baseprint.vercel.app/?tokenId=${mintedTokenId}&address=${address}`;
+        // Use /api/frame endpoint for Farcaster Frame metadata
+        // This ensures proper Frame preview in Farcaster
+        const shareUrl = `https://baseprint.vercel.app/api/frame?tokenId=${mintedTokenId}`;
         const castText = `Just minted my BasePrint ID! 🎨`;
 
         // Open Warpcast composer with the share URL as embed (not in text)
