@@ -62,12 +62,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       title: 'View BasePrint',
       action: {
         type: 'launch_frame',
-        name: 'BasePrint',
         url: searchParams.tokenId
           ? `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${searchParams.tokenId}`
-          : 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint',
-        splashImageUrl: 'https://baseprint.vercel.app/farcaster-icon.png',
-        splashBackgroundColor: '#0052FF'
+          : 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint'
       }
     }
   };
@@ -104,4 +101,14 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
         : 'https://baseprint.vercel.app',
     },
   };
+}
+
+import { Suspense } from 'react';
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
+  );
 }
