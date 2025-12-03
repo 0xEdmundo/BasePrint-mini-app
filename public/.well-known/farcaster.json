@@ -13,6 +13,12 @@
     "buttonTitle": "View BasePrint",
     "splashImageUrl": "https://baseprint.vercel.app/opengraph-image.png",
     "splashBackgroundColor": "#0052FF",
-    "webhookUrl": "https://baseprint.vercel.app/api/webhook"
+    "webhookUrl": "https://baseprint.vercel.app/api/webhook",
+    "castShareUrl": "https://baseprint.vercel.app",
+    "subtitle": "Onchain Identity Card",
+    "description": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    "ogTitle": "BasePrint – Onchain Identity Card",
+    "ogDescription": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    "ogImageUrl": "https://baseprint.vercel.app/opengraph-image.png"
   }
 }
