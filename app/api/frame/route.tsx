@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ImageResponse } from 'next/og';
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
@@ -29,22 +28,24 @@ export async function GET(req: NextRequest) {
 
         buttonText = 'View my BasePrint ID';
         buttonTarget = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${tokenId}`;
-        // Create Mini App Embed JSON
-        const miniAppEmbed = {
-            imageUrl: imageUrl,
-            button: {
-                title: buttonText,
-                action: {
-                    type: 'launch_miniapp',
-                    url: buttonTarget,
-                    name: 'BasePrint',
-                    splashImageUrl: imageUrl
-                }
-            }
-        };
+    }
 
-        // Return HTML with Farcaster Mini App metadata
-        const html = `<!DOCTYPE html>
+    // Create Mini App Embed JSON
+    const miniAppEmbed = {
+        imageUrl: imageUrl,
+        button: {
+            title: buttonText,
+            action: {
+                type: 'launch_miniapp',
+                url: buttonTarget,
+                name: 'BasePrint',
+                splashImageUrl: imageUrl
+            }
+        }
+    };
+
+    // Return HTML with Farcaster Mini App metadata
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -83,10 +84,10 @@ export async function GET(req: NextRequest) {
 </body>
 </html>`;
 
-        return new NextResponse(html, {
-            headers: {
-                'Content-Type': 'text/html; charset=utf-8',
-                'Cache-Control': 'public, max-age=60',
-            },
-        });
-    }
+    return new NextResponse(html, {
+        headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=60',
+        },
+    });
+}
