@@ -56,16 +56,17 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   // Create Mini App Embed for Farcaster
   // Always return metadata to ensure Home URL Embed works
   const miniAppEmbed = {
-    imageUrl: ogImageUrl,
+    version: '1',
+    imageUrl: 'https://baseprint.vercel.app/farcaster-icon.png',
     button: {
-      title: searchParams.tokenId ? 'View my BasePrint ID' : 'Mint BasePrint ID',
+      title: 'View BasePrint',
       action: {
-        type: 'launch_miniapp',
+        type: 'launch_frame',
+        name: 'BasePrint',
         url: searchParams.tokenId
           ? `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${searchParams.tokenId}`
           : 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint',
-        name: 'BasePrint',
-        splashImageUrl: ogImageUrl,
+        splashImageUrl: 'https://baseprint.vercel.app/farcaster-icon.png',
         splashBackgroundColor: '#0052FF'
       }
     }
@@ -91,7 +92,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       // Required: og:image for Farcaster to recognize the frame
       'og:image': ogImageUrl,
       // Farcaster Mini App Embed (for dynamic NFT previews)
-      ...(miniAppEmbed ? { 'fc:miniapp': JSON.stringify(miniAppEmbed) } : {}),
+      'fc:miniapp': JSON.stringify(miniAppEmbed),
       // Farcaster Frame metadata (backward compatibility)
       'fc:frame': 'vNext',
       'fc:frame:image': ogImageUrl,
@@ -103,14 +104,4 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
         : 'https://baseprint.vercel.app',
     },
   };
-}
-
-import { Suspense } from 'react';
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <HomeContent />
-    </Suspense>
-  );
 }
