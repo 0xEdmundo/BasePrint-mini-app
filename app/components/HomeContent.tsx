@@ -65,12 +65,15 @@ export default function HomeContent() {
     const [pendingTokenId, setPendingTokenId] = useState<string | null>(null);
     const [nftImage, setNftImage] = useState<string | null>(null);
 
+    const [isFrameContext, setIsFrameContext] = useState(false);
+
     // Initialize Farcaster SDK and handle splash
     useEffect(() => {
         const init = async () => {
             const context = await sdk.context;
             if (context?.user) {
                 console.log('Farcaster Context User:', context.user);
+                setIsFrameContext(true);
             }
             setTimeout(() => setShowSplash(false), 1500);
         };
@@ -432,9 +435,17 @@ export default function HomeContent() {
                         <div className="w-full px-8">
                             <button
                                 onClick={() => {
-                                    const preferredConnector =
-                                        connectors.find((c) => c.id === 'coinbaseWalletSDK') ||
-                                        connectors[0];
+                                    let preferredConnector;
+                                    if (isFrameContext) {
+                                        // In Frame/Base App context, prefer the injected connector (Metamask/Base App provider)
+                                        preferredConnector = connectors.find(c => c.id === 'injected');
+                                    }
+
+                                    if (!preferredConnector) {
+                                        // Default fallback
+                                        preferredConnector = connectors.find((c) => c.id === 'coinbaseWalletSDK') || connectors[0];
+                                    }
+
                                     connect({ connector: preferredConnector });
                                 }}
                                 className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
