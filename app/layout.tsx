@@ -21,6 +21,11 @@ export const metadata: Metadata = {
       },
     ],
   },
+  icons: {
+    icon: '/farcaster-icon.png',
+    shortcut: '/farcaster-icon.png',
+    apple: '/farcaster-icon.png',
+  },
 };
 
 export default function RootLayout({
