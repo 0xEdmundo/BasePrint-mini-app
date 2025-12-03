@@ -324,8 +324,8 @@ export default function HomeContent() {
 
     // Share on Farcaster
     const handleShareOnFarcaster = async () => {
-        if (!mintedTokenId || !nftImage) {
-            console.error('Cannot share: missing tokenId or NFT image');
+        if (!mintedTokenId || !userData || !stats) {
+            console.error('Cannot share: missing required data');
             return;
         }
 
@@ -334,7 +334,30 @@ export default function HomeContent() {
             ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
             : 'https://baseprint.vercel.app';
 
-        const nftImageUrl = nftImage || `https://baseprint.vercel.app/api/metadata/${mintedTokenId}`;
+        // Build the NFT image URL using /api/image endpoint with query params
+        const imageParams = new URLSearchParams({
+            username: userData.username,
+            displayName: userData.username,
+            pfp: userData.pfp || '',
+            fid: userData.fid.toString(),
+            score: userData.score.toString(),
+            isVerified: userData.isVerified ? 'true' : 'false',
+            txCount: stats.txCount.toString(),
+            daysActive: stats.daysActive.toString(),
+            walletAge: stats.walletAge.toString(),
+            bridgeToEth: stats.bridgeToEth?.toString() || '0',
+            bridgeFromEth: stats.bridgeFromEth?.toString() || '0',
+            defiLend: stats.defiLend?.toString() || '0',
+            defiBorrow: stats.defiBorrow?.toString() || '0',
+            defiSwap: stats.defiSwap?.toString() || '0',
+            defiStake: stats.defiStake?.toString() || '0',
+            deployed: stats.deployed.toString(),
+            longestStreak: stats.longestStreak.toString(),
+            currentStreak: stats.currentStreak?.toString() || '0',
+            basename: basename || ''
+        });
+
+        const nftImageUrl = `${host}/api/image?${imageParams.toString()}`;
 
         // Farcaster Mini App link with tokenId parameter
         // This will show the fc:miniapp metadata (icon + "View BasePrint" button)
