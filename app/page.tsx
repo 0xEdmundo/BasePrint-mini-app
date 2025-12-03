@@ -8,22 +8,50 @@ type Props = {
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = new URLSearchParams();
 
-  // Pass through all search params to the OG image API
-  Object.entries(searchParams).forEach(([key, value]) => {
-    if (typeof value === 'string') {
-      params.append(key, value);
-    }
-  });
-
   // Default title and description
-  const title = 'BasePrint';
-  const description = 'Your onchain identity on Base.';
+  let title = 'BasePrint – Onchain Identity Card';
+  let description = 'Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.';
 
-  // Construct the OG image URL
-  // Ensure we have a valid protocol
+  // Construct the host URL
   const vercelUrl = process.env.VERCEL_URL;
   const host = vercelUrl ? `https://${vercelUrl}` : 'https://baseprint.vercel.app';
-  const ogImageUrl = `${host}/api/og?${params.toString()}`;
+
+  let ogImageUrl = `${host}/opengraph-image.png`;
+
+  // 1. If tokenId is present, fetch specific NFT metadata
+  if (searchParams.tokenId) {
+    try {
+      const res = await fetch(`${host}/api/metadata/${searchParams.tokenId}`, { next: { revalidate: 60 } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.image) {
+          ogImageUrl = data.image;
+        }
+        if (data.name) {
+          title = data.name;
+        }
+        if (data.description) {
+          description = data.description;
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching metadata for OG:', e);
+    }
+  }
+  // 2. Otherwise, use search params to generate dynamic preview (for live preview before minting)
+  else {
+    // Pass through all search params to the OG image API
+    Object.entries(searchParams).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        params.append(key, value);
+      }
+    });
+
+    // Only use dynamic OG if we actually have params
+    if (params.toString()) {
+      ogImageUrl = `${host}/api/og?${params.toString()}`;
+    }
+  }
 
   return {
     title: title,
@@ -31,6 +59,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     openGraph: {
       title: title,
       description: description,
+      url: `${host}${searchParams.tokenId ? `/?tokenId=${searchParams.tokenId}` : ''}`,
       images: [
         {
           url: ogImageUrl,
@@ -50,6 +79,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   };
 }
 
+import { Suspense } from 'react';
+
 export default function Page() {
-  return <HomeContent />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
+  );
 }

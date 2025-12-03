@@ -3,11 +3,10 @@
 import { Name } from '@coinbase/onchainkit/identity';
 import { base } from 'wagmi/chains';
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount, useConnect, useDisconnect, useWriteContract, useSwitchChain, type BaseError } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, type BaseError } from 'wagmi';
 import { parseEther } from 'viem';
 import sdk from '@farcaster/frame-sdk';
-
-
+import { useSearchParams } from 'next/navigation';
 
 // --- 1. CONFIG & API KEYS ---
 const CONTRACT_ADDRESS = '0x66fADf7f93A4407DD336C35cD09ccDA58559442b';
@@ -39,15 +38,23 @@ const AppLogo = ({ className }: { className?: string }) => (
 
 // --- 3. MAIN COMPONENT ---
 export default function HomeContent() {
+    const searchParams = useSearchParams();
+    const urlTokenId = searchParams.get('tokenId');
+
     const { address, isConnected } = useAccount();
     const { connect, connectors } = useConnect();
     const { disconnect } = useDisconnect();
     const {
+        data: hash,
         writeContract,
         isPending,
         isSuccess,
         error: mintError,
     } = useWriteContract();
+
+    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+        hash,
+    });
 
     const [loading, setLoading] = useState(false);
     const [showSplash, setShowSplash] = useState(true);
@@ -55,6 +62,8 @@ export default function HomeContent() {
     const [stats, setStats] = useState<any>(null);
     const [basename, setBasename] = useState<string | null>(null);
     const [mintedTokenId, setMintedTokenId] = useState<string | null>(null);
+    const [pendingTokenId, setPendingTokenId] = useState<string | null>(null);
+    const [nftImage, setNftImage] = useState<string | null>(null);
 
     // Initialize Farcaster SDK and handle splash
     useEffect(() => {
@@ -66,7 +75,32 @@ export default function HomeContent() {
             setTimeout(() => setShowSplash(false), 1500);
         };
         init();
-    }, []);
+
+        // Check for tokenId in URL
+        if (urlTokenId) {
+            setMintedTokenId(urlTokenId);
+        }
+    }, [urlTokenId]);
+
+    // Watch for transaction confirmation
+    useEffect(() => {
+        if (isConfirmed && pendingTokenId) {
+            setMintedTokenId(pendingTokenId);
+            addLog(`Mint confirmed! Token ID: ${pendingTokenId}`);
+        }
+    }, [isConfirmed, pendingTokenId]);
+
+    // Fetch NFT image when mintedTokenId is set
+    useEffect(() => {
+        if (mintedTokenId) {
+            fetch(`/api/metadata/${mintedTokenId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.image) setNftImage(data.image);
+                })
+                .catch(err => console.error('Error fetching NFT image:', err));
+        }
+    }, [mintedTokenId]);
 
     // --- DEBUG LOGGING ---
     const [logs, setLogs] = useState<string[]>([]);
@@ -278,7 +312,7 @@ export default function HomeContent() {
             });
 
             // Store the token ID that will be minted
-            setMintedTokenId(nextTokenId.toString());
+            setPendingTokenId(nextTokenId.toString());
         } catch (err) {
             console.error('Mint Error:', err);
             addLog(`Mint Error: ${err}`);
@@ -290,9 +324,9 @@ export default function HomeContent() {
         if (!mintedTokenId) return;
 
         // Include address in share URL to ensure metadata can be generated even if indexing is slow
-        // Use Farcaster Mini App URL to enable "App" button in cast
-        const shareUrl = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${mintedTokenId}&address=${address}`;
-        const castText = `Just minted my BasePrint ID! 🎨\nQuery your BasePrint ID, your on-chain ID card that combines your Farcaster asset, Neynar score, and Base wallet activity into a single immutable NFT.`;
+        // Use query param format for better Mini App compatibility
+        const shareUrl = `https://baseprint.vercel.app/?tokenId=${mintedTokenId}&address=${address}`;
+        const castText = `Just minted my BasePrint ID! 🎨\n\nCheck it out here: ${shareUrl}`;
 
         // Open Warpcast composer with the share URL
         const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
@@ -585,21 +619,40 @@ export default function HomeContent() {
 
                                 {/* --- ACTION BUTTON (MINT or SHARE) --- */}
                                 {mintedTokenId ? (
-                                    <button
-                                        onClick={handleShareOnFarcaster}
-                                        className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
-                                    >
-                                        <span>🎨 SHARE ON FARCASTER</span>
-                                    </button>
+                                    <div className="w-full flex flex-col items-center gap-4">
+                                        {nftImage && (
+                                            <div className="relative w-64 h-64 rounded-xl overflow-hidden shadow-2xl border-4 border-white/10">
+                                                <img
+                                                    src={nftImage}
+                                                    alt={`BasePrint #${mintedTokenId}`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center w-full">
+                                            <p className="text-green-400 font-bold text-lg mb-1">
+                                                {urlTokenId ? 'Viewing BasePrint ID' : 'Mint Successful!'}
+                                            </p>
+                                            <p className="text-gray-400 text-sm">Token ID: #{mintedTokenId}</p>
+                                        </div>
+                                        <button
+                                            onClick={handleShareOnFarcaster}
+                                            className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
+                                        >
+                                            <span>🎨 SHARE ON FARCASTER</span>
+                                        </button>
+                                    </div>
                                 ) : (
                                     <button
                                         disabled={isPending}
                                         onClick={handleMint}
                                         className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
-                                    ${isPending ? 'bg-blue-400' : 'bg-[#0052FF] hover:bg-blue-700'}`}
+                                    ${isPending || isConfirming ? 'bg-blue-400' : 'bg-[#0052FF] hover:bg-blue-700'}`}
                                     >
-                                        {isPending ? (
-                                            <span className="animate-pulse">Processing...</span>
+                                        {isPending || isConfirming ? (
+                                            <span className="animate-pulse">
+                                                {isPending ? 'Processing...' : 'Confirming...'}
+                                            </span>
                                         ) : (
                                             <>
                                                 <span>MINT BASEPRINT</span>

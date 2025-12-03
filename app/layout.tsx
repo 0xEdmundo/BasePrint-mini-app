@@ -4,8 +4,20 @@ import type { Metadata } from "next";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "BasePrint",
-  description: "Mint your BasePrint ID on Base",
+  title: "BasePrint – Onchain Identity Card",
+  description:
+    "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+  openGraph: {
+    title: "BasePrint – Onchain Identity Card",
+    description:
+      "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    url: "https://baseprint.vercel.app",
+    images: [
+      {
+        url: "https://baseprint.vercel.app/opengraph-image.png",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
