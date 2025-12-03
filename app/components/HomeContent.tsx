@@ -332,314 +332,337 @@ export default function HomeContent() {
                 ],
                 functionName: 'setBaseURI',
                 args: ['https://baseprint.vercel.app/api/metadata/'],
-                if(showSplash) {
-                    return (
-                        <div className="fixed inset-0 bg-[#0052FF] flex flex-col items-center justify-center z-50 text-white">
-                            <div className="animate-bounce mb-6">
-                                <AppLogo className="w-24 h-24" />
-                            </div>
-                            <h1 className="text-3xl font-black tracking-tighter">BasePrint</h1>
-                            <p className="text-blue-200 text-xs mt-2 font-mono tracking-widest">
-                                IDENTITY LAYER LOADING...
-                            </p>
-                        </div>
-                    );
-                }
+            });
+        }
+    };
 
-    return(
-        <div className = "min-h-screen bg-slate-100 font-sans text-slate-900 flex flex-col items-center justify-center p-4" >
-                        <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100 relative">
-                            {/* HEADER */}
-                            <div className="bg-white/80 backdrop-blur-md p-4 flex justify-between items-center absolute top-0 w-full z-20">
-                                <div className="flex items-center gap-2">
-                                    <AppLogo className="w-6 h-6" />
-                                    <span className="font-bold text-slate-900 tracking-tight">
-                                        BasePrint
-                                    </span>
+    // Share on Farcaster
+    const handleShareOnFarcaster = async () => {
+        if (!mintedTokenId) {
+            console.error('Cannot share: missing tokenId');
+            return;
+        }
+
+        // Farcaster Mini App link with tokenId parameter
+        const miniAppLink = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${mintedTokenId}`;
+
+        const castText = `Query your BasePrint ID, your on-chain ID card that combines your Farcaster asset, Neynar score, and Base wallet activity into a single immutable NFT.`;
+
+        // Open Warpcast composer with just the Mini App link
+        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(miniAppLink)}`;
+
+        sdk.actions.openUrl(warpcastUrl);
+    };
+
+    // --- RENDER ---
+    if (showSplash) {
+        return (
+            <div className="fixed inset-0 bg-[#0052FF] flex flex-col items-center justify-center z-50 text-white">
+                <div className="animate-bounce mb-6">
+                    <AppLogo className="w-24 h-24" />
+                </div>
+                <h1 className="text-3xl font-black tracking-tighter">BasePrint</h1>
+                <p className="text-blue-200 text-xs mt-2 font-mono tracking-widest">
+                    IDENTITY LAYER LOADING...
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-slate-100 font-sans text-slate-900 flex flex-col items-center justify-center p-4" >
+            <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100 relative">
+                {/* HEADER */}
+                <div className="bg-white/80 backdrop-blur-md p-4 flex justify-between items-center absolute top-0 w-full z-20">
+                    <div className="flex items-center gap-2">
+                        <AppLogo className="w-6 h-6" />
+                        <span className="font-bold text-slate-900 tracking-tight">
+                            BasePrint
+                        </span>
+                    </div>
+                    {isConnected && (
+                        <div className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded-full text-gray-500">
+                            {address?.slice(0, 6)}...{address?.slice(-4)}
+                        </div>
+                    )}
+                </div>
+
+                {!isConnected ? (
+                    <div className="flex flex-col items-center justify-center h-[600px] bg-gradient-to-b from-blue-50 to-white">
+                        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 overflow-hidden">
+                            <img src="/farcaster-icon.png" alt="Farcaster" className="w-full h-full object-cover" />
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-900 mb-2">
+                            Connect Identity
+                        </h2>
+                        <p className="text-gray-500 text-sm text-center px-8 mb-8">
+                            Reveal your onchain reputation and Base activity.
+                        </p>
+
+                        <div className="w-full px-8">
+                            <button
+                                onClick={() => {
+                                    let preferredConnector;
+                                    if (isFrameContext) {
+                                        // In Frame/Base App context, prefer the injected connector (Metamask/Base App provider)
+                                        preferredConnector = connectors.find(c => c.id === 'injected');
+                                    }
+
+                                    if (!preferredConnector) {
+                                        // Default fallback
+                                        preferredConnector = connectors.find((c) => c.id === 'coinbaseWalletSDK') || connectors[0];
+                                    }
+
+                                    connect({ connector: preferredConnector });
+                                }}
+                                className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
+                            >
+                                Connect Wallet
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
+                        {loading || !userData || !stats ? (
+                            <div className="flex flex-col items-center justify-center flex-1">
+                                <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p className="text-xs text-slate-400 font-mono">
+                                    SCANNING BASE CHAIN...
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 animate-in slide-in-from-bottom-5 duration-500">
+                                {/* --- GLASS CARD (REVISED) --- */}
+                                <div className="relative w-full aspect-[1.7/1] rounded-2xl overflow-hidden shadow-2xl group border border-white/20">
+                                    {/* Arkaplan */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF] via-[#0042cc] to-[#002980]"></div>
+                                    <div className="absolute -right-10 -bottom-20 w-60 h-60 bg-cyan-400 opacity-20 rounded-full blur-3xl"></div>
+                                    <div className="absolute right-[-20px] top-[-20px] opacity-10 rotate-12">
+                                        <AppLogo className="w-40 h-40 text-white" />
+                                    </div>
+
+                                    {/* İçerik */}
+                                    <div className="absolute inset-0 p-5 text-white flex flex-col justify-between z-10">
+
+                                        {/* YENİ PROFİL DÜZENİ: Resim Solda, Bilgiler Sağda */}
+                                        <div className="flex items-start gap-4">
+                                            {/* SOL: Profil Resmi */}
+                                            <div className="relative">
+                                                <img
+                                                    src={userData.pfp || 'https://zora.co/assets/icon.png'}
+                                                    className="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-slate-800 object-cover"
+                                                    alt="pfp"
+                                                />
+                                                {/* Verified Badge Resmin Üzerinde (Opsiyonel) veya Yanında */}
+                                                {userData.isVerified && (
+                                                    <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1 border border-white">
+                                                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* SAĞ: Bilgiler */}
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                {/* 1. FID (En Üst) */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] text-blue-200 font-mono opacity-80 uppercase tracking-widest">
+                                                        FID: {userData.fid}
+                                                    </span>
+                                                    <AppLogo className="w-6 h-6 opacity-80" />
+                                                </div>
+
+                                                {/* 2. Display Name (Kalın) */}
+                                                <h3 className="text-xl font-black tracking-tight leading-tight truncate mt-1">
+                                                    {userData.username}
+                                                </h3>
+
+                                                {/* 3. Handle (@username) */}
+                                                <span className="text-xs text-blue-200 font-medium truncate">
+                                                    @{userData.username}
+                                                </span>
+
+                                                {/* 4. Basename (En Alt) */}
+                                                {/* 4. Basename (En Alt) */}
+                                                <div className="mt-2">
+                                                    <div className="text-[10px] font-bold text-[#0052FF] bg-white px-2 py-0.5 rounded-full inline-block shadow-sm">
+                                                        <Name address={address} chain={base} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Neynar Score Bar */}
+                                        <div className="mt-auto">
+                                            <div className="flex justify-between items-end mb-1">
+                                                <span className="text-[10px] text-blue-200 font-bold uppercase">
+                                                    Neynar Score
+                                                </span>
+                                                <span className="text-xl font-black leading-none">
+                                                    {userData.score.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-green-300 to-green-500"
+                                                    style={{ width: `${userData.score * 100}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                {isConnected && (
-                                    <div className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded-full text-gray-500">
-                                        {address?.slice(0, 6)}...{address?.slice(-4)}
+
+                                {/* --- STATS GRID --- */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-sm">
+                                    {/* Row 1: Active Days | Wallet Age */}
+                                    <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                                        <div className="p-3 text-center">
+                                            <div className="font-black text-slate-800 text-lg">
+                                                {stats.daysActive}
+                                            </div>
+                                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                                                Active Days
+                                            </div>
+                                        </div>
+                                        <div className="p-3 text-center">
+                                            <div className="font-black text-slate-800 text-lg">
+                                                {stats.walletAge}{' '}
+                                                <span className="text-xs text-gray-400 font-normal">
+                                                    Days
+                                                </span>
+                                            </div>
+                                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                                                Wallet Age
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 2: Total TXs | Bridge TXs */}
+                                    <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                                        <div className="p-3 text-center">
+                                            <div className="font-black text-slate-800 text-lg">
+                                                {stats.txCount}
+                                            </div>
+                                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                                                Total TXs
+                                            </div>
+                                        </div>
+                                        <div className="p-3 text-center">
+                                            <div className="font-black text-slate-800 text-lg">
+                                                {stats.bridge}
+                                            </div>
+                                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                                                Bridge TXs
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 3: Lend/Borrow | Smart Contracts */}
+                                    <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                                        <div className="p-3 text-center">
+                                            <div className="font-black text-slate-800 text-lg">
+                                                {stats.defi}
+                                            </div>
+                                            <div className="flex flex-col items-center justify-center leading-none mt-1">
+                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                                                    Lend/Borrow
+                                                </span>
+                                                <span className="text-[8px] text-gray-300 font-bold uppercase tracking-wider">
+                                                    Swap/Stake
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="p-3 text-center">
+                                            <div className="font-black text-slate-800 text-lg">
+                                                {stats.deployed}
+                                            </div>
+                                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                                                Smart Contracts
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 4: Best Streak */}
+                                    <div className="p-3 bg-blue-50/50 flex justify-between items-center px-6">
+                                        <span className="text-[10px] font-bold text-[#0052FF] uppercase tracking-wider">
+                                            Best Streak
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-base">🔥</span>
+                                            <span className="font-black text-[#0052FF] text-lg">
+                                                {stats.longestStreak} Days
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* --- ACTION BUTTON (MINT or SHARE) --- */}
+                                {mintedTokenId ? (
+                                    <div className="w-full bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6 shadow-lg border border-green-200/50">
+                                        {/* Congratulations Header */}
+                                        <div className="text-center mb-4">
+                                            <div className="text-4xl mb-2">🎉</div>
+                                            <h3 className="text-2xl font-black text-slate-900 mb-1">
+                                                {urlTokenId ? 'BasePrint ID' : 'Congratulations!'}
+                                            </h3>
+                                            <p className="text-sm text-gray-600">
+                                                {urlTokenId ? `Viewing Token #${mintedTokenId}` : `You've minted BasePrint #${mintedTokenId}`}
+                                            </p>
+                                        </div>
+
+                                        {/* NFT Image */}
+                                        {nftImage && (
+                                            <div className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border-4 border-white mb-4">
+                                                <img
+                                                    src={nftImage}
+                                                    alt={`BasePrint #${mintedTokenId}`}
+                                                    className="w-full h-full object-contain"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Share Button */}
+                                        <button
+                                            onClick={handleShareOnFarcaster}
+                                            className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
+                                        >
+                                            <span>🎨 SHARE ON FARCASTER</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        disabled={isPending}
+                                        onClick={handleMint}
+                                        className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
+                                    ${isPending || isConfirming ? 'bg-blue-400' : 'bg-[#0052FF] hover:bg-blue-700'}`}
+                                    >
+                                        {isPending || isConfirming ? (
+                                            <span className="animate-pulse">
+                                                {isPending ? 'Processing...' : 'Confirming...'}
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <span>MINT BASEPRINT</span>
+                                                <span className="bg-white/20 text-xs px-2 py-1 rounded font-medium">
+                                                    0.0002 ETH
+                                                </span>
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+
+                                {mintError && (
+                                    <div className="bg-red-50 text-red-500 text-[10px] text-center p-2 rounded-lg border border-red-100">
+                                        {(mintError as BaseError).shortMessage ||
+                                            (mintError as any).message}
                                     </div>
                                 )}
                             </div>
-
-                            {!isConnected ? (
-                                <div className="flex flex-col items-center justify-center h-[600px] bg-gradient-to-b from-blue-50 to-white">
-                                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 overflow-hidden">
-                                        <img src="/farcaster-icon.png" alt="Farcaster" className="w-full h-full object-cover" />
-                                    </div>
-                                    <h2 className="text-2xl font-black text-slate-900 mb-2">
-                                        Connect Identity
-                                    </h2>
-                                    <p className="text-gray-500 text-sm text-center px-8 mb-8">
-                                        Reveal your onchain reputation and Base activity.
-                                    </p>
-
-                                    <div className="w-full px-8">
-                                        <button
-                                            onClick={() => {
-                                                let preferredConnector;
-                                                if (isFrameContext) {
-                                                    // In Frame/Base App context, prefer the injected connector (Metamask/Base App provider)
-                                                    preferredConnector = connectors.find(c => c.id === 'injected');
-                                                }
-
-                                                if (!preferredConnector) {
-                                                    // Default fallback
-                                                    preferredConnector = connectors.find((c) => c.id === 'coinbaseWalletSDK') || connectors[0];
-                                                }
-
-                                                connect({ connector: preferredConnector });
-                                            }}
-                                            className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
-                                        >
-                                            Connect Wallet
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="pt-16 pb-6 px-5 bg-slate-50 min-h-[600px] flex flex-col justify-between">
-                                    {loading || !userData || !stats ? (
-                                        <div className="flex flex-col items-center justify-center flex-1">
-                                            <div className="w-8 h-8 border-2 border-[#0052FF] border-t-transparent rounded-full animate-spin mb-4"></div>
-                                            <p className="text-xs text-slate-400 font-mono">
-                                                SCANNING BASE CHAIN...
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4 animate-in slide-in-from-bottom-5 duration-500">
-                                            {/* --- GLASS CARD (REVISED) --- */}
-                                            <div className="relative w-full aspect-[1.7/1] rounded-2xl overflow-hidden shadow-2xl group border border-white/20">
-                                                {/* Arkaplan */}
-                                                <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF] via-[#0042cc] to-[#002980]"></div>
-                                                <div className="absolute -right-10 -bottom-20 w-60 h-60 bg-cyan-400 opacity-20 rounded-full blur-3xl"></div>
-                                                <div className="absolute right-[-20px] top-[-20px] opacity-10 rotate-12">
-                                                    <AppLogo className="w-40 h-40 text-white" />
-                                                </div>
-
-                                                {/* İçerik */}
-                                                <div className="absolute inset-0 p-5 text-white flex flex-col justify-between z-10">
-
-                                                    {/* YENİ PROFİL DÜZENİ: Resim Solda, Bilgiler Sağda */}
-                                                    <div className="flex items-start gap-4">
-                                                        {/* SOL: Profil Resmi */}
-                                                        <div className="relative">
-                                                            <img
-                                                                src={userData.pfp || 'https://zora.co/assets/icon.png'}
-                                                                className="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-slate-800 object-cover"
-                                                                alt="pfp"
-                                                            />
-                                                            {/* Verified Badge Resmin Üzerinde (Opsiyonel) veya Yanında */}
-                                                            {userData.isVerified && (
-                                                                <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1 border border-white">
-                                                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                                    </svg>
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {/* SAĞ: Bilgiler */}
-                                                        <div className="flex flex-col flex-1 min-w-0">
-                                                            {/* 1. FID (En Üst) */}
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-[10px] text-blue-200 font-mono opacity-80 uppercase tracking-widest">
-                                                                    FID: {userData.fid}
-                                                                </span>
-                                                                <AppLogo className="w-6 h-6 opacity-80" />
-                                                            </div>
-
-                                                            {/* 2. Display Name (Kalın) */}
-                                                            <h3 className="text-xl font-black tracking-tight leading-tight truncate mt-1">
-                                                                {userData.username}
-                                                            </h3>
-
-                                                            {/* 3. Handle (@username) */}
-                                                            <span className="text-xs text-blue-200 font-medium truncate">
-                                                                @{userData.username}
-                                                            </span>
-
-                                                            {/* 4. Basename (En Alt) */}
-                                                            {/* 4. Basename (En Alt) */}
-                                                            <div className="mt-2">
-                                                                <div className="text-[10px] font-bold text-[#0052FF] bg-white px-2 py-0.5 rounded-full inline-block shadow-sm">
-                                                                    <Name address={address} chain={base} />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Neynar Score Bar */}
-                                                    <div className="mt-auto">
-                                                        <div className="flex justify-between items-end mb-1">
-                                                            <span className="text-[10px] text-blue-200 font-bold uppercase">
-                                                                Neynar Score
-                                                            </span>
-                                                            <span className="text-xl font-black leading-none">
-                                                                {userData.score.toFixed(2)}
-                                                            </span>
-                                                        </div>
-                                                        <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-gradient-to-r from-green-300 to-green-500"
-                                                                style={{ width: `${userData.score * 100}%` }}
-                                                            ></div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* --- STATS GRID --- */}
-                                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-sm">
-                                                {/* Row 1: Active Days | Wallet Age */}
-                                                <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
-                                                    <div className="p-3 text-center">
-                                                        <div className="font-black text-slate-800 text-lg">
-                                                            {stats.daysActive}
-                                                        </div>
-                                                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-                                                            Active Days
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3 text-center">
-                                                        <div className="font-black text-slate-800 text-lg">
-                                                            {stats.walletAge}{' '}
-                                                            <span className="text-xs text-gray-400 font-normal">
-                                                                Days
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-                                                            Wallet Age
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Row 2: Total TXs | Bridge TXs */}
-                                                <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
-                                                    <div className="p-3 text-center">
-                                                        <div className="font-black text-slate-800 text-lg">
-                                                            {stats.txCount}
-                                                        </div>
-                                                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-                                                            Total TXs
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3 text-center">
-                                                        <div className="font-black text-slate-800 text-lg">
-                                                            {stats.bridge}
-                                                        </div>
-                                                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-                                                            Bridge TXs
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Row 3: Lend/Borrow | Smart Contracts */}
-                                                <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
-                                                    <div className="p-3 text-center">
-                                                        <div className="font-black text-slate-800 text-lg">
-                                                            {stats.defi}
-                                                        </div>
-                                                        <div className="flex flex-col items-center justify-center leading-none mt-1">
-                                                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-                                                                Lend/Borrow
-                                                            </span>
-                                                            <span className="text-[8px] text-gray-300 font-bold uppercase tracking-wider">
-                                                                Swap/Stake
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3 text-center">
-                                                        <div className="font-black text-slate-800 text-lg">
-                                                            {stats.deployed}
-                                                        </div>
-                                                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-                                                            Smart Contracts
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Row 4: Best Streak */}
-                                                <div className="p-3 bg-blue-50/50 flex justify-between items-center px-6">
-                                                    <span className="text-[10px] font-bold text-[#0052FF] uppercase tracking-wider">
-                                                        Best Streak
-                                                    </span>
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="text-base">🔥</span>
-                                                        <span className="font-black text-[#0052FF] text-lg">
-                                                            {stats.longestStreak} Days
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* --- ACTION BUTTON (MINT or SHARE) --- */}
-                                            {mintedTokenId ? (
-                                                <div className="w-full bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6 shadow-lg border border-green-200/50">
-                                                    {/* Congratulations Header */}
-                                                    <div className="text-center mb-4">
-                                                        <div className="text-4xl mb-2">🎉</div>
-                                                        <h3 className="text-2xl font-black text-slate-900 mb-1">
-                                                            {urlTokenId ? 'BasePrint ID' : 'Congratulations!'}
-                                                        </h3>
-                                                        <p className="text-sm text-gray-600">
-                                                            {urlTokenId ? `Viewing Token #${mintedTokenId}` : `You've minted BasePrint #${mintedTokenId}`}
-                                                        </p>
-                                                    </div>
-
-                                                    {/* NFT Image */}
-                                                    {nftImage && (
-                                                        <div className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border-4 border-white mb-4">
-                                                            <img
-                                                                src={nftImage}
-                                                                alt={`BasePrint #${mintedTokenId}`}
-                                                                className="w-full h-full object-contain"
-                                                            />
-                                                        </div>
-                                                    )}
-
-                                                    {/* Share Button */}
-                                                    <button
-                                                        onClick={handleShareOnFarcaster}
-                                                        className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
-                                                    >
-                                                        <span>🎨 SHARE ON FARCASTER</span>
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    disabled={isPending}
-                                                    onClick={handleMint}
-                                                    className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
-                                    ${isPending || isConfirming ? 'bg-blue-400' : 'bg-[#0052FF] hover:bg-blue-700'}`}
-                                                >
-                                                    {isPending || isConfirming ? (
-                                                        <span className="animate-pulse">
-                                                            {isPending ? 'Processing...' : 'Confirming...'}
-                                                        </span>
-                                                    ) : (
-                                                        <>
-                                                            <span>MINT BASEPRINT</span>
-                                                            <span className="bg-white/20 text-xs px-2 py-1 rounded font-medium">
-                                                                0.0002 ETH
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </button>
-                                            )}
-
-                                            {mintError && (
-                                                <div className="bg-red-50 text-red-500 text-[10px] text-center p-2 rounded-lg border border-red-100">
-                                                    {(mintError as BaseError).shortMessage ||
-                                                        (mintError as any).message}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div >
     );
 }
