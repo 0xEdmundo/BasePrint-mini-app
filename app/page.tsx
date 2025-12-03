@@ -54,18 +54,22 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   }
 
   // Create Mini App Embed for Farcaster
-  const miniAppEmbed = searchParams.tokenId ? {
+  // Always return metadata to ensure Home URL Embed works
+  const miniAppEmbed = {
     imageUrl: ogImageUrl,
     button: {
-      title: 'View my BasePrint ID',
+      title: searchParams.tokenId ? 'View my BasePrint ID' : 'Mint BasePrint ID',
       action: {
         type: 'launch_miniapp',
-        url: `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${searchParams.tokenId}`,
+        url: searchParams.tokenId
+          ? `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${searchParams.tokenId}`
+          : 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint',
         name: 'BasePrint',
-        splashImageUrl: ogImageUrl
+        splashImageUrl: ogImageUrl,
+        splashBackgroundColor: '#0052FF'
       }
     }
-  } : null;
+  };
 
   return {
     title: title,
