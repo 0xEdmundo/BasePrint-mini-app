@@ -75,10 +75,7 @@ export default function HomeContent() {
                 console.log('Farcaster Context User:', context.user);
                 setIsFrameContext(true);
             }
-            setTimeout(() => {
-                setShowSplash(false);
-                sdk.actions.ready(); // Signal that the app is ready
-            }, 1500);
+            setTimeout(() => setShowSplash(false), 1500);
         };
         init();
 
