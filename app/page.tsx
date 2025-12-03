@@ -64,14 +64,18 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
         {
           url: ogImageUrl,
           width: 1200,
-          height: 800,
+          height: 630,
           alt: 'BasePrint Identity Card',
         },
       ],
     },
     other: {
+      // Required: og:image for Farcaster to recognize the frame
+      'og:image': ogImageUrl,
+      // Farcaster Frame metadata
       'fc:frame': 'vNext',
       'fc:frame:image': ogImageUrl,
+      'fc:frame:image:aspect_ratio': '1.91:1',
       'fc:frame:button:1': searchParams.tokenId ? 'View my BasePrint ID' : 'Mint BasePrint ID',
       'fc:frame:button:1:action': 'link',
       'fc:frame:button:1:target': searchParams.tokenId
