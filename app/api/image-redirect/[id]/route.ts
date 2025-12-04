@@ -11,11 +11,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             ? 'http://localhost:3000'
             : 'https://baseprint.vercel.app';
 
-        // Fetch the metadata for this token
-        const metadataRes = await fetch(`${baseUrl}/api/metadata/${tokenId}`);
-        
+        // Fetch the metadata for this token, forwarding any query parameters (like address)
+        const { search } = new URL(req.url);
+        const metadataRes = await fetch(`${baseUrl}/api/metadata/${tokenId}${search}`);
+
         if (!metadataRes.ok) {
-             return new Response('Metadata not found', { status: 404 });
+            return new Response('Metadata not found', { status: 404 });
         }
 
         const metadata = await metadataRes.json();
