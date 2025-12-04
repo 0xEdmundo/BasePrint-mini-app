@@ -3,26 +3,6 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Providers from "./providers";
 
-export const metadata: Metadata = {
-  title: "BasePrint Identity",
-  description:
-    "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
-  openGraph: {
-    title: "BasePrint Identity",
-    description:
-      "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
-    url: "https://baseprint.vercel.app",
-    images: [
-      {
-        url: "https://baseprint.vercel.app/opengraph-image.png",
-        width: 1200,
-        height: 630,
-        alt: "BasePrint Identity Card",
-      },
-    ],
-  },
-};
-
 export default function RootLayout({
   children,
 }: {
@@ -30,9 +10,9 @@ export default function RootLayout({
 }) {
   const miniAppEmbed = {
     version: '1',
-    imageUrl: 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed',
+    imageUrl: 'https://baseprint.vercel.app/farcaster-icon.png',
     button: {
-      title: 'View BasePrint',
+      title: 'Launch BasePrint',
       action: {
         type: 'launch_frame',
         url: 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint'
@@ -51,3 +31,31 @@ export default function RootLayout({
     </html>
   );
 }
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://baseprint.vercel.app"),
+  title: "BasePrint Identity",
+  description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+  openGraph: {
+    title: "BasePrint Identity",
+    description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    url: "https://baseprint.vercel.app",
+    siteName: "BasePrint",
+    type: "website",
+    images: [
+      {
+        url: "https://baseprint.vercel.app/farcaster-icon.png",
+        width: 1200,
+        height: 630,
+        alt: "BasePrint Identity Card",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BasePrint Identity",
+    description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    images: ["https://baseprint.vercel.app/farcaster-icon.png"],
+  },
+  manifest: "/manifest.json",
+};
