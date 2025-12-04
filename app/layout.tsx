@@ -3,74 +3,51 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Providers from "./providers";
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
-
 export const metadata: Metadata = {
-  metadataBase: new URL("https://baseprint.vercel.app"),
   title: "BasePrint Identity",
-  description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+  description:
+    "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
   openGraph: {
     title: "BasePrint Identity",
-    description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    description:
+      "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
     url: "https://baseprint.vercel.app",
-    siteName: "BasePrint",
-    type: "website",
     images: [
       {
-        url: "https://baseprint.vercel.app/farcaster-icon.png",
+        url: "https://baseprint.vercel.app/opengraph-image.png",
         width: 1200,
         height: 630,
         alt: "BasePrint Identity Card",
       },
     ],
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "BasePrint Identity",
-    description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
-    images: ["https://baseprint.vercel.app/farcaster-icon.png"],
-  },
-  other: {
-    "fc:miniapp": JSON.stringify({
-      version: "1",
-      imageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
-      button: {
-        title: "Launch BasePrint",
-        action: {
-          type: "launch_miniapp",
-          name: "BasePrint",
-          url: "https://baseprint.vercel.app",
-          splashImageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
-          splashBackgroundColor: "#0052FF",
-        },
-      },
-    }),
-    "fc:frame": JSON.stringify({
-      version: "1",
-      imageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
-      button: {
-        title: "Launch BasePrint",
-        action: {
-          type: "launch_frame",
-          name: "BasePrint",
-          url: "https://baseprint.vercel.app",
-          splashImageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
-          splashBackgroundColor: "#0052FF",
-        },
-      },
-    }),
-  },
-  manifest: "/manifest.json",
 };
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const miniAppEmbed = {
+    version: '1',
+    imageUrl: 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed',
+    button: {
+      title: 'View BasePrint',
+      action: {
+        type: 'launch_frame',
+        url: 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint'
+      }
+    }
+  };
+
+  const miniAppMetaTag = `<meta property="fc:miniapp" content='${JSON.stringify(miniAppEmbed).replace(/'/g, "&#39;")}' />`;
+
+  return (
+    <html lang="en">
+      <head dangerouslySetInnerHTML={{ __html: miniAppMetaTag }} />
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}

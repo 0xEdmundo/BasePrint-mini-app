@@ -1,33 +1,35 @@
 {
-  "miniapp": {
+  "accountAssociation": {
+    "header": "eyJmaWQiOjkyMzI2NSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGQxNWI3YUY1MWJiYTg1MjkyRjczMjU1NjMzYjk5M0MwMzZlYTJERTMifQ",
+    "payload": "eyJkb21haW4iOiJiYXNlcHJpbnQudmVyY2VsLmFwcCJ9",
+    "signature": "gOsyTGUPcLOJCvnK+VA5xwa3vujgL03N5Q5os7VNTQlMZ4aINCNxXpYh6VmkkibUAKYjne30GQv7/SV5xPkMwhs="
+  },
+  "baseBuilder": {
+    "ownerAddress": "0xd254705b68A494AB6565173689eDB83CAEB420d3"
+  },
+  "frame": {
     "version": "1",
     "name": "BasePrint",
     "iconUrl": "https://baseprint.vercel.app/farcaster-icon.png",
     "homeUrl": "https://baseprint.vercel.app",
-    "imageUrl": "https://baseprint.vercel.app/farcaster-icon.png",
-    "buttonTitle": "Open BasePrint",
-    "splashImageUrl": "https://baseprint.vercel.app/farcaster-icon.png",
+    "imageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed",
+    "buttonTitle": "View BasePrint",
+    "splashImageUrl": "https://baseprint.vercel.app/opengraph-image.png",
     "splashBackgroundColor": "#0052FF",
+    "webhookUrl": "https://baseprint.vercel.app/api/webhook",
+    "castShareUrl": "https://baseprint.vercel.app",
+    "subtitle": "Onchain Identity Card",
+    "description": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    "ogTitle": "BasePrint Identity",
+    "ogDescription": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    "ogImageUrl": "https://baseprint.vercel.app/opengraph-image.png",
+    "primaryCategory": "social",
     "tags": [
       "identity",
       "onchain",
       "profile",
       "nft",
       "base"
-    ],
-    "primaryCategory": "social",
-    "ogTitle": "BasePrint Identity",
-    "ogImageUrl": "https://baseprint.vercel.app/farcaster-icon.png"
-  },
-  "baseBuilder": {
-    "ownerAddress": "0xd254705b68A494AB6565173689eDB83CAEB420d3",
-    "allowedAddresses": [
-      ""
     ]
-  },
-  "accountAssociation": {
-    "header": "eyJmaWQiOjkyMzI2NSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGQxNWI3YUY1MWJiYTg1MjkyRjczMjU1NjMzYjk5M0MwMzZlYTJERTMifQ",
-    "payload": "eyJkb21haW4iOiJiYXNlcHJpbnQudmVyY2VsLmFwcCJ9",
-    "signature": "gOsyTGUPcLOJCvnK+VA5xwa3vujgL03N5Q5os7VNTQlMZ4aINCNxXpYh6VmkkibUAKYjne30GQv7/SV5xPkMwhs="
   }
 }
