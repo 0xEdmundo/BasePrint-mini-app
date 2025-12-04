@@ -55,16 +55,20 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
   // Create Mini App Embed for Farcaster
   // Always return metadata to ensure Home URL Embed works
+  // Create Mini App Embed for Farcaster
   const miniAppEmbed = {
     version: '1',
-    imageUrl: searchParams.tokenId ? ogImageUrl : 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed',
+    imageUrl: searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/farcaster-icon.png',
     button: {
-      title: 'View BasePrint',
+      title: 'Launch BasePrint',
       action: {
         type: 'launch_frame',
+        name: 'BasePrint',
         url: searchParams.tokenId
-          ? `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${searchParams.tokenId}`
-          : 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint'
+          ? `https://baseprint.vercel.app/?tokenId=${searchParams.tokenId}`
+          : 'https://baseprint.vercel.app',
+        splashImageUrl: 'https://baseprint.vercel.app/farcaster-icon.png',
+        splashBackgroundColor: '#0052FF'
       }
     }
   };
@@ -80,7 +84,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       type: "website",
       images: [
         {
-          url: ogImageUrl,
+          url: searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/farcaster-icon.png',
           width: 1200,
           height: 630,
           alt: 'BasePrint Identity Card',
@@ -91,22 +95,22 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       card: 'summary_large_image',
       title: title,
       description: description,
-      images: [ogImageUrl],
+      images: [searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/farcaster-icon.png'],
     },
     other: {
-      // Required: og:image for Farcaster to recognize the frame
-      'og:image': ogImageUrl,
-      // Farcaster Mini App Embed (for dynamic NFT previews)
-      'fc:miniapp': JSON.stringify(miniAppEmbed),
-      // Farcaster Frame metadata (backward compatibility)
-      'fc:frame': 'vNext',
-      'fc:frame:image': ogImageUrl,
-      'fc:frame:image:aspect_ratio': '1.91:1',
-      'fc:frame:button:1': searchParams.tokenId ? 'View my BasePrint ID' : 'Mint BasePrint ID',
-      'fc:frame:button:1:action': 'link',
-      'fc:frame:button:1:target': searchParams.tokenId
-        ? `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint?tokenId=${searchParams.tokenId}`
-        : 'https://baseprint.vercel.app',
+      // Farcaster Mini App Embed
+      'fc:miniapp': JSON.stringify({
+        ...miniAppEmbed,
+        button: {
+          ...miniAppEmbed.button,
+          action: {
+            ...miniAppEmbed.button.action,
+            type: 'launch_miniapp'
+          }
+        }
+      }),
+      // Backward compatibility
+      'fc:frame': JSON.stringify(miniAppEmbed),
     },
   };
 }
