@@ -82,20 +82,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       url: `${host}${searchParams.tokenId ? `/?tokenId=${searchParams.tokenId}` : ''}`,
       siteName: "BasePrint",
       type: "website",
-      images: [
-        {
-          url: searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/embed-image.png',
-          width: 1200,
-          height: 630,
-          alt: 'BasePrint Identity Card',
-        },
-      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: title,
       description: description,
-      images: [searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/embed-image.png'],
     },
     other: {
       // Farcaster Mini App Embed
