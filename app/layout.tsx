@@ -23,14 +23,14 @@ export const metadata: Metadata = {
   other: {
     "fc:frame": JSON.stringify({
       "version": "next",
-      "imageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
+      "imageUrl": "https://baseprint.vercel.app/farcaster-icon.png",
       "button": {
         "title": "Open BasePrint",
         "action": {
           "type": "launch_frame",
           "name": "BasePrint",
           "url": "https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint",
-          "splashImageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
+          "splashImageUrl": "https://baseprint.vercel.app/farcaster-icon.png",
           "splashBackgroundColor": "#0052FF"
         }
       }
