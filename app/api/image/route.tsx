@@ -42,14 +42,16 @@ export async function GET(req: NextRequest) {
             (
                 <div
                     style={{
-                        height: '800px',
-                        width: '1200px',
+                        height: '100%',
+                        width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: '#f1f5f9',
                         fontFamily: '"Inter", sans-serif',
+                        margin: 0,
+                        padding: 0,
                     }}
                 >
                     {/* Card Container */}
