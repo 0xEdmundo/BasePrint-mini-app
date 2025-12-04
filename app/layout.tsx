@@ -46,7 +46,7 @@ export default function RootLayout({
     button: {
       title: 'View BasePrint',
       action: {
-        type: 'launch_frame',
+        type: 'link',
         url: 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint'
       }
     }
