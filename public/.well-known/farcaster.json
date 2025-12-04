@@ -1,12 +1,4 @@
 {
-  "accountAssociation": {
-    "header": "eyJmaWQiOjkyMzI2NSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGQxNWI3YUY1MWJiYTg1MjkyRjczMjU1NjMzYjk5M0MwMzZlYTJERTMifQ",
-    "payload": "eyJkb21haW4iOiJiYXNlcHJpbnQudmVyY2VsLmFwcCJ9",
-    "signature": "gOsyTGUPcLOJCvnK+VA5xwa3vujgL03N5Q5os7VNTQlMZ4aINCNxXpYh6VmkkibUAKYjne30GQv7/SV5xPkMwhs="
-  },
-  "baseBuilder": {
-    "ownerAddress": "0xd254705b68A494AB6565173689eDB83CAEB420d3"
-  },
   "miniapp": {
     "version": "1",
     "name": "BasePrint",
@@ -16,7 +8,23 @@
     "buttonTitle": "Open BasePrint",
     "splashImageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
     "splashBackgroundColor": "#0052FF",
+    "tags": [
+      "identity",
+      "onchain",
+      "profile",
+      "nft",
+      "base"
+    ],
+    "primaryCategory": "social",
     "ogTitle": "BasePrint Identity",
     "ogImageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png"
+  },
+  "baseBuilder": {
+    "ownerAddress": "0xd254705b68A494AB6565173689eDB83CAEB420d3"
+  },
+  "accountAssociation": {
+    "header": "eyJmaWQiOjkyMzI2NSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGQxNWI3YUY1MWJiYTg1MjkyRjczMjU1NjMzYjk5M0MwMzZlYTJERTMifQ",
+    "payload": "eyJkb21haW4iOiJiYXNlcHJpbnQudmVyY2VsLmFwcCJ9",
+    "signature": "gOsyTGUPcLOJCvnK+VA5xwa3vujgL03N5Q5os7VNTQlMZ4aINCNxXpYh6VmkkibUAKYjne30GQv7/SV5xPkMwhs="
   }
 }
