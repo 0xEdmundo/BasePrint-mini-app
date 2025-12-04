@@ -97,7 +97,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       description: description,
       images: searchParams.tokenId ? [ogImageUrl] : undefined,
     },
-    other: {
+    other: searchParams.tokenId ? {} : {
       // Farcaster Mini App Embed
       'fc:miniapp': JSON.stringify({
         ...miniAppEmbed,
