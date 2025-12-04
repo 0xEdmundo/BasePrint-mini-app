@@ -1,0 +1,21 @@
+{
+    "name": "BasePrint Identity",
+    "short_name": "BasePrint",
+    "description": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0052FF",
+    "icons": [
+        {
+            "src": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
