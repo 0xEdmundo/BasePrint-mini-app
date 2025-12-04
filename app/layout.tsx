@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     url: "https://baseprint.vercel.app",
     images: [
       {
-        url: "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
+        url: "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed",
         width: 1200,
         height: 630,
         alt: "BasePrint Identity Card",
@@ -30,7 +30,7 @@ export default function RootLayout({
 }) {
   const miniAppEmbed = {
     version: '1',
-    imageUrl: 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png',
+    imageUrl: 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed',
     button: {
       title: 'View BasePrint',
       action: {

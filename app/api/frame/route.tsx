@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
         ? `https://${process.env.VERCEL_URL}`
         : 'https://baseprint.vercel.app';
 
-    let imageUrl = 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png';
+    let imageUrl = 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed';
     let buttonText = 'Mint BasePrint ID';
     let buttonTarget = 'https://baseprint.vercel.app';
 
