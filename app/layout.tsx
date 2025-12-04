@@ -43,8 +43,22 @@ export const metadata: Metadata = {
     images: ["https://baseprint.vercel.app/farcaster-icon.png"],
   },
   other: {
+    "fc:miniapp": JSON.stringify({
+      version: "1",
+      imageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
+      button: {
+        title: "Launch BasePrint",
+        action: {
+          type: "launch_miniapp",
+          name: "BasePrint",
+          url: "https://baseprint.vercel.app",
+          splashImageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
+          splashBackgroundColor: "#0052FF",
+        },
+      },
+    }),
     "fc:frame": JSON.stringify({
-      version: "next",
+      version: "1",
       imageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
       button: {
         title: "Launch BasePrint",
