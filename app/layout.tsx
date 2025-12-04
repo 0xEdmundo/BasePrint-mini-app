@@ -52,15 +52,17 @@ export default function RootLayout({
     }
   };
 
+  const frameImageUrl = 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed';
+
   const miniAppMetaTag = `
     <meta property="fc:miniapp" content='${JSON.stringify(miniAppEmbed).replace(/'/g, "&#39;")}' />
     <meta property="fc:frame" content="vNext" />
-    <meta property="fc:frame:image" content="https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed" />
+    <meta property="fc:frame:image" content="${frameImageUrl}" />
     <meta property="fc:frame:image:aspect_ratio" content="1.91:1" />
-    <meta property="fc:frame:button:1" content="View BasePrint" />
+    <meta property="fc:frame:button:1" content="Open BasePrint" />
     <meta property="fc:frame:button:1:action" content="link" />
     <meta property="fc:frame:button:1:target" content="https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint" />
-    <meta property="fc:frame:post_url" content="https://baseprint.vercel.app/api/frame" />
+    <meta property="og:image" content="${frameImageUrl}" />
   `;
 
   return (
