@@ -58,7 +58,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   // Create Mini App Embed for Farcaster
   const miniAppEmbed = {
     version: '1',
-    imageUrl: searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/farcaster-icon.png',
+    imageUrl: searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/embed-image.png',
     button: {
       title: 'Launch BasePrint',
       action: {
@@ -67,7 +67,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
         url: searchParams.tokenId
           ? `https://baseprint.vercel.app/?tokenId=${searchParams.tokenId}`
           : 'https://baseprint.vercel.app',
-        splashImageUrl: 'https://baseprint.vercel.app/farcaster-icon.png',
+        splashImageUrl: 'https://baseprint.vercel.app/embed-image.png',
         splashBackgroundColor: '#0052FF'
       }
     }
@@ -84,7 +84,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       type: "website",
       images: [
         {
-          url: searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/farcaster-icon.png',
+          url: searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/embed-image.png',
           width: 1200,
           height: 630,
           alt: 'BasePrint Identity Card',
@@ -95,7 +95,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       card: 'summary_large_image',
       title: title,
       description: description,
-      images: [searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/farcaster-icon.png'],
+      images: [searchParams.tokenId ? ogImageUrl : 'https://baseprint.vercel.app/embed-image.png'],
     },
     other: {
       // Farcaster Mini App Embed

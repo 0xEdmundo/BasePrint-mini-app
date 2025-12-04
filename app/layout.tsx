@@ -10,7 +10,7 @@ export default function RootLayout({
 }) {
   const miniAppEmbed = {
     version: '1',
-    imageUrl: 'https://baseprint.vercel.app/farcaster-icon.png',
+    imageUrl: 'https://baseprint.vercel.app/embed-image.png',
     button: {
       title: 'Launch BasePrint',
       action: {
