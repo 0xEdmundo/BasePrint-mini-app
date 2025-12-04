@@ -8,8 +8,29 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const miniAppEmbed = {
+    version: "1",
+    imageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
+    button: {
+      title: "Open BasePrint",
+      action: {
+        type: "launch_miniapp",
+        name: "BasePrint",
+        url: "https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint",
+        splashImageUrl: "https://baseprint.vercel.app/farcaster-icon.png",
+        splashBackgroundColor: "#0052FF"
+      }
+    }
+  };
+
+  const miniAppMetaTag = `
+    <meta name="fc:miniapp" content='${JSON.stringify(miniAppEmbed).replace(/'/g, "&#39;")}' />
+    <meta name="fc:frame" content='${JSON.stringify({ ...miniAppEmbed, button: { ...miniAppEmbed.button, action: { ...miniAppEmbed.button.action, type: "launch_frame" } } }).replace(/'/g, "&#39;")}' />
+  `;
+
   return (
     <html lang="en">
+      <head dangerouslySetInnerHTML={{ __html: miniAppMetaTag }} />
       <body>
         <Providers>{children}</Providers>
       </body>
@@ -41,22 +62,6 @@ export const metadata: Metadata = {
     title: "BasePrint Identity",
     description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
     images: ["https://baseprint.vercel.app/farcaster-icon.png"],
-  },
-  other: {
-    "fc:frame": JSON.stringify({
-      "version": "next",
-      "imageUrl": "https://baseprint.vercel.app/farcaster-icon.png",
-      "button": {
-        "title": "Open BasePrint",
-        "action": {
-          "type": "launch_frame",
-          "name": "BasePrint",
-          "url": "https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint",
-          "splashImageUrl": "https://baseprint.vercel.app/farcaster-icon.png",
-          "splashBackgroundColor": "#0052FF"
-        }
-      }
-    })
   },
   manifest: "/manifest.json",
 };
