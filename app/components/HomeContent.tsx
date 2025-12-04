@@ -351,7 +351,7 @@ export default function HomeContent() {
         const miniAppLink = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint`;
 
         // Image Redirect Link (Short & Stable)
-        const imageLink = `https://baseprint.vercel.app/api/image-redirect/${mintedTokenId}`;
+        const imageLink = `https://baseprint.vercel.app/?tokenId=${mintedTokenId}`;
 
         const castText = `🎉 Congrats! Your BasePrint ID has been minted.
 
