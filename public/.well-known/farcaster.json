@@ -13,7 +13,7 @@
     "iconUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
     "homeUrl": "https://baseprint.vercel.app",
     "imageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed",
-    "buttonTitle": "View BasePrint",
+    "buttonTitle": "Open BasePrint",
     "splashImageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed",
     "splashBackgroundColor": "#0052FF",
     "webhookUrl": "https://baseprint.vercel.app/api/webhook",
