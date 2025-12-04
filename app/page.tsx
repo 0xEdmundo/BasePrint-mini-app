@@ -85,6 +85,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
         },
       ],
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: title,
+      description: description,
+      images: [ogImageUrl],
+    },
     other: {
       // Required: og:image for Farcaster to recognize the frame
       'og:image': ogImageUrl,

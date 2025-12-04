@@ -21,6 +21,13 @@ export const metadata: Metadata = {
       },
     ],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "BasePrint Identity",
+    description:
+      "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    images: ["https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed"],
+  },
 };
 
 export default function RootLayout({
