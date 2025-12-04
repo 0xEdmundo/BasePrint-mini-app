@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     url: "https://baseprint.vercel.app",
     images: [
       {
-        url: "https://baseprint.vercel.app/opengraph-image.png",
+        url: "https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png",
         width: 1200,
         height: 630,
         alt: "BasePrint Identity Card",

@@ -48,9 +48,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     });
 
     // Only use dynamic OG if we actually have params
-    if (params.toString()) {
-      ogImageUrl = `${host}/api/og?${params.toString()}`;
-    }
+    // if (params.toString()) {
+    //   ogImageUrl = `${host}/api/og?${params.toString()}`;
+    // }
   }
 
   // Create Mini App Embed for Farcaster
