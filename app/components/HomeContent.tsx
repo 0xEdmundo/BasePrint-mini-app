@@ -58,6 +58,7 @@ export default function HomeContent() {
 
     const [loading, setLoading] = useState(false);
     const [showSplash, setShowSplash] = useState(true);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [userData, setUserData] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
     const [basename, setBasename] = useState<string | null>(null);
@@ -86,6 +87,7 @@ export default function HomeContent() {
         // Check for tokenId in URL
         if (urlTokenId) {
             setMintedTokenId(urlTokenId);
+            setShowSuccessModal(true);
         }
     }, [urlTokenId]);
 
@@ -93,6 +95,7 @@ export default function HomeContent() {
     useEffect(() => {
         if (isConfirmed && pendingTokenId) {
             setMintedTokenId(pendingTokenId);
+            setShowSuccessModal(true);
             addLog(`Mint confirmed! Token ID: ${pendingTokenId}`);
         }
     }, [isConfirmed, pendingTokenId]);
@@ -607,69 +610,55 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
                                     </div>
                                 </div>
 
-                                {/* --- ACTION BUTTON (MINT or SHARE) --- */}
-                                {mintedTokenId ? (
-                                    <div className="w-full bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6 shadow-lg border border-green-200/50">
-                                        {/* Congratulations Header */}
-                                        <div className="text-center mb-4">
-                                            <div className="text-4xl mb-2">🎉</div>
-                                            <h3 className="text-2xl font-black text-slate-900 mb-1">
-                                                {urlTokenId ? 'BasePrint ID' : 'Congratulations!'}
-                                            </h3>
-                                            <p className="text-sm text-gray-600">
-                                                {urlTokenId ? `Viewing Token #${mintedTokenId}` : `You've minted BasePrint #${mintedTokenId}`}
-                                            </p>
-                                        </div>
-
-                                        {/* NFT Image */}
-                                        {nftImage && (
-                                            <div className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border-4 border-white mb-4">
-                                                <img
-                                                    src={nftImage}
-                                                    alt={`BasePrint #${mintedTokenId}`}
-                                                    className="w-full h-full object-contain"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {/* Share Button */}
-                                        <button
-                                            onClick={handleShareOnFarcaster}
-                                            className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
-                                        >
-                                            <span>🎨 SHARE ON FARCASTER</span>
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        disabled={isPending}
-                                        onClick={handleMint}
-                                        className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
-                                    ${isPending || isConfirming ? 'bg-blue-400' : 'bg-[#0052FF] hover:bg-blue-700'}`}
-                                    >
-                                        {isPending || isConfirming ? (
-                                            <span className="animate-pulse">
-                                                {isPending ? 'Processing...' : 'Confirming...'}
-                                            </span>
-                                        ) : (
-                                            <>
-                                                <span>MINT BASEPRINT</span>
-                                                <span className="bg-white/20 text-xs px-2 py-1 rounded font-medium">
-                                                    0.0002 ETH
-                                                </span>
-                                            </>
-                                        )}
-                                    </button>
-                                )}
-
-                                {mintError && (
-                                    <div className="bg-red-50 text-red-500 text-[10px] text-center p-2 rounded-lg border border-red-100">
-                                        {(mintError as BaseError).shortMessage ||
-                                            (mintError as any).message}
-                                    </div>
-                                )}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* --- SUCCESS MODAL --- */}
+                {mintedTokenId && showSuccessModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                        <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white/20 relative animate-in zoom-in-95 duration-300">
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowSuccessModal(false)}
+                                className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition"
+                            >
+                                ✕
+                            </button>
+
+                            <div className="bg-gradient-to-br from-green-50 to-blue-50 p-8 flex flex-col items-center text-center">
+                                <div className="text-5xl mb-4 animate-bounce">🎉</div>
+                                <h3 className="text-2xl font-black text-slate-900 mb-2">
+                                    {urlTokenId ? 'BasePrint ID' : 'Congratulations!'}
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-6">
+                                    {urlTokenId ? `Viewing Token #${mintedTokenId}` : `You've minted BasePrint #${mintedTokenId}`}
+                                </p>
+
+                                {/* NFT Image */}
+                                {nftImage && (
+                                    <div className="relative w-64 h-64 aspect-square rounded-2xl overflow-hidden shadow-2xl border-4 border-white mb-6 rotate-1 hover:rotate-0 transition-transform duration-500">
+                                        <img
+                                            src={nftImage}
+                                            alt={`BasePrint #${mintedTokenId}`}
+                                            className="w-full h-full object-contain bg-white"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Share Button */}
+                                <button
+                                    onClick={() => {
+                                        handleShareOnFarcaster();
+                                        setShowSuccessModal(false); // Close modal after clicking share
+                                    }}
+                                    className="w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-700"
+                                >
+                                    <span>🎨 SHARE ON FARCASTER</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

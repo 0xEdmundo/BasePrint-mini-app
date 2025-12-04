@@ -42,8 +42,8 @@ export async function GET(req: NextRequest) {
             (
                 <div
                     style={{
-                        height: '100%',
-                        width: '100%',
+                        height: '800px',
+                        width: '1200px',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -64,7 +64,6 @@ export async function GET(req: NextRequest) {
                             overflow: 'hidden',
                             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                             position: 'relative',
-                            margin: 'auto', // Force centering
                         }}
                     >
                         {/* 1. TOP SECTION: Profile & Gradient */}
