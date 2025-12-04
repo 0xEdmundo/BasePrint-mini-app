@@ -20,7 +20,10 @@
     "ogImageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png"
   },
   "baseBuilder": {
-    "ownerAddress": "0xd254705b68A494AB6565173689eDB83CAEB420d3"
+    "ownerAddress": "0xd254705b68A494AB6565173689eDB83CAEB420d3",
+    "allowedAddresses": [
+      ""
+    ]
   },
   "accountAssociation": {
     "header": "eyJmaWQiOjkyMzI2NSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGQxNWI3YUY1MWJiYTg1MjkyRjczMjU1NjMzYjk5M0MwMzZlYTJERTMifQ",
