@@ -76,6 +76,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       title: title,
       description: description,
       url: `${host}${searchParams.tokenId ? `/?tokenId=${searchParams.tokenId}` : ''}`,
+      siteName: "BasePrint",
+      type: "website",
       images: [
         {
           url: ogImageUrl,
