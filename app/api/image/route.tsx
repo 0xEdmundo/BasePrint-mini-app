@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
                             overflow: 'hidden',
                             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                             position: 'relative',
+                            margin: 'auto', // Force centering
                         }}
                     >
                         {/* 1. TOP SECTION: Profile & Gradient */}
@@ -151,7 +152,7 @@ export async function GET(req: NextRequest) {
                             </div>
 
                             {/* Decorative Background Elements */}
-                            <div style={{ position: 'absolute', right: '-40px', top: '-40px', width: '250px', height: '250px', backgroundColor: '#22d3ee', opacity: 0.1, borderRadius: '50%', filter: 'blur(60px)' }}></div>
+                            <div style={{ position: 'absolute', right: '0px', top: '0px', width: '250px', height: '250px', backgroundColor: '#22d3ee', opacity: 0.1, borderRadius: '50%', filter: 'blur(60px)' }}></div>
                         </div>
 
                         {/* 2. BOTTOM SECTION: Stats Grid */}
