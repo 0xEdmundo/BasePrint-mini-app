@@ -610,6 +610,38 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
                                     </div>
                                 </div>
 
+                                {/* --- MINT BUTTON --- */}
+                                {!mintedTokenId && (
+                                    <div className="mt-6">
+                                        <button
+                                            disabled={isPending}
+                                            onClick={handleMint}
+                                            className={`w-full py-4 rounded-xl font-black text-lg text-white shadow-xl shadow-blue-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2
+                                        ${isPending || isConfirming ? 'bg-blue-400' : 'bg-[#0052FF] hover:bg-blue-700'}`}
+                                        >
+                                            {isPending || isConfirming ? (
+                                                <span className="animate-pulse">
+                                                    {isPending ? 'Processing...' : 'Confirming...'}
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <span>MINT BASEPRINT</span>
+                                                    <span className="bg-white/20 text-xs px-2 py-1 rounded font-medium">
+                                                        0.0002 ETH
+                                                    </span>
+                                                </>
+                                            )}
+                                        </button>
+
+                                        {mintError && (
+                                            <div className="mt-2 bg-red-50 text-red-500 text-[10px] text-center p-2 rounded-lg border border-red-100">
+                                                {(mintError as BaseError).shortMessage ||
+                                                    (mintError as any).message}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                             </div>
                         )}
                     </div>
