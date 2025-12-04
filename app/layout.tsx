@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed",
+        url: "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
         width: 1200,
         height: 630,
         alt: "BasePrint Identity Card",
@@ -29,7 +29,23 @@ export const metadata: Metadata = {
     title: "BasePrint Identity",
     description:
       "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
-    images: ["https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed"],
+    images: ["https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png"],
+  },
+  other: {
+    "fc:frame": JSON.stringify({
+      "version": "next",
+      "imageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
+      "button": {
+        "title": "Open BasePrint",
+        "action": {
+          "type": "launch_frame",
+          "name": "BasePrint",
+          "url": "https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint",
+          "splashImageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/icon.png",
+          "splashBackgroundColor": "#0052FF"
+        }
+      }
+    })
   },
   manifest: "/manifest.json",
 };
