@@ -42,8 +42,8 @@ export async function GET(req: NextRequest) {
             (
                 <div
                     style={{
-                        height: '100%',
-                        width: '100%',
+                        height: '800px',
+                        width: '1200px',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -52,149 +52,180 @@ export async function GET(req: NextRequest) {
                         fontFamily: '"Inter", sans-serif',
                     }}
                 >
-                    {/* Card Container - Resized for 1200x630 canvas */}
+                    {/* Card Container */}
                     <div
                         style={{
                             display: 'flex',
                             flexDirection: 'column',
-                            width: '900px',
-                            height: '540px',
+                            width: '1000px',
+                            height: '600px',
                             backgroundColor: 'white',
-                            borderRadius: '36px',
+                            borderRadius: '40px',
                             overflow: 'hidden',
                             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                             position: 'relative',
                         }}
                     >
                         {/* 1. TOP SECTION: Profile & Gradient */}
-                        <div style={{ display: 'flex', width: '100%', height: '250px', position: 'relative', background: 'linear-gradient(135deg, #0052FF 0%, #0042cc 50%, #002980 100%)', padding: '28px', color: 'white', justifyContent: 'space-between' }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                width: '100%',
+                                height: '280px',
+                                position: 'relative',
+                                background: 'linear-gradient(135deg, #0052FF 0%, #0042cc 50%, #002980 100%)',
+                                padding: '30px',
+                                color: 'white',
+                                justifyContent: 'space-between',
+                            }}
+                        >
                             {/* Profile Content */}
                             <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', justifyContent: 'space-between', zIndex: 10 }}>
+
                                 {/* Header Row */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                    {/* Logo Circle */}
-                                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#0052FF' }} />
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        {/* Logo Circle */}
+                                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#0052FF' }}></div>
+                                        </div>
+                                        <span style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.05em' }}>BasePrint</span>
                                     </div>
-                                    <span style={{ fontSize: '16px', fontWeight: 600, opacity: 0.9, marginLeft: '10px' }}>BasePrint</span>
-                                    <span style={{ marginLeft: 'auto', fontSize: '14px', opacity: 0.7, fontWeight: 500 }}>FID: {fid}</span>
+
+                                    {isVerified && (
+                                        <div style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.9)', borderRadius: '999px', border: '1px solid #60A5FA' }}>
+                                            <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Verified</span>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Main Profile Info */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '10px' }}>
-                                    {/* Avatar */}
+                                {/* Profile Info Row */}
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+                                    {/* PFP */}
                                     <img
                                         src={pfp}
-                                        alt={username}
-                                        style={{
-                                            width: '100px',
-                                            height: '100px',
-                                            borderRadius: '50%',
-                                            border: '4px solid rgba(255, 255, 255, 0.3)',
-                                            objectFit: 'cover',
-                                        }}
+                                        width="100"
+                                        height="100"
+                                        style={{ borderRadius: '50%', border: '3px solid white', objectFit: 'cover' }}
                                     />
+
+                                    {/* Text Details */}
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '42px', fontWeight: 800, lineHeight: '1.1', letterSpacing: '-0.02em' }}>{displayName}</span>
-                                        <span style={{ fontSize: '20px', opacity: 0.8, fontWeight: 500 }}>@{username}</span>
+                                        <span style={{ fontSize: '12px', color: '#BFDBFE', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '2px' }}>
+                                            FID: {fid}
+                                        </span>
+                                        <span style={{ fontSize: '36px', fontWeight: 900, lineHeight: 1, marginBottom: '2px' }}>
+                                            {displayName}
+                                        </span>
+                                        <span style={{ fontSize: '16px', color: '#BFDBFE' }}>
+                                            @{username}
+                                        </span>
+                                        {basename && (
+                                            <div style={{ marginTop: '8px', display: 'flex' }}>
+                                                <span style={{ backgroundColor: 'white', color: '#0052FF', padding: '3px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
+                                                    {basename}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Neynar Score Bar */}
+                                {/* Score Bar */}
                                 <div style={{ display: 'flex', flexDirection: 'column', width: '100%', marginTop: 'auto' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                        <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.8 }}>Neynar Score</span>
-                                        <span style={{ fontSize: '14px', fontWeight: 700 }}>{score.toFixed(2)}</span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6px' }}>
+                                        <span style={{ fontSize: '11px', color: '#BFDBFE', fontWeight: 700, textTransform: 'uppercase' }}>Neynar Score</span>
+                                        <span style={{ fontSize: '24px', fontWeight: 900, lineHeight: 1 }}>{parseFloat(score.toString()).toFixed(2)}</span>
                                     </div>
-                                    <div style={{ width: '100%', height: '8px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '4px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${Math.min(score * 100, 100)}%`, height: '100%', backgroundColor: '#22c55e', borderRadius: '4px' }} />
+                                    <div style={{ width: '100%', height: '10px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
+                                        <div style={{ width: `${score * 100}%`, height: '100%', background: 'linear-gradient(to right, #86efac, #22c55e)' }}></div>
                                     </div>
+                                    {mintDate && (
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                                            <span style={{ fontSize: '10px', color: '#BFDBFE', fontFamily: 'monospace' }}>
+                                                Minted: {mintDate}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
+
                             </div>
 
-                            {/* Decorative Background Element */}
-                            <div style={{
-                                position: 'absolute',
-                                top: '0',
-                                right: '0',
-                                width: '500px',
-                                height: '500px',
-                                background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-                                borderRadius: '50%',
-                                pointerEvents: 'none'
-                            }} />
+                            {/* Decorative Background Elements */}
+                            <div style={{ position: 'absolute', right: '0px', top: '0px', width: '250px', height: '250px', backgroundColor: '#22d3ee', opacity: 0.1, borderRadius: '50%', filter: 'blur(60px)' }}></div>
                         </div>
 
                         {/* 2. BOTTOM SECTION: Stats Grid */}
-                        <div style={{ display: 'flex', flex: 1, padding: '20px', flexDirection: 'column' }}>
-                            {/* Main Stats Row */}
-                            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', marginBottom: '20px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                                    <span style={{ fontSize: '36px', fontWeight: 800, color: '#1e293b' }}>{daysActive}</span>
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Days</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '320px', backgroundColor: 'white' }}>
+
+                            {/* Row 1: Main Metrics */}
+                            <div style={{ display: 'flex', width: '100%', height: '33.33%', borderBottom: '1px solid #f3f4f6' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%', borderRight: '1px solid #f3f4f6' }}>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#1e293b' }}>{daysActive}</span>
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Days</span>
                                 </div>
-                                <div style={{ width: '1px', height: '50px', backgroundColor: '#e2e8f0' }} />
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                                    <span style={{ fontSize: '36px', fontWeight: 800, color: '#1e293b' }}>{walletAge}</span>
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Wallet Age</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%', borderRight: '1px solid #f3f4f6' }}>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#1e293b' }}>{walletAge}</span>
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Wallet Age</span>
                                 </div>
-                                <div style={{ width: '1px', height: '50px', backgroundColor: '#e2e8f0' }} />
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                                    <span style={{ fontSize: '36px', fontWeight: 800, color: '#1e293b' }}>{txCount}</span>
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total TXs</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%' }}>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#1e293b' }}>{txCount}</span>
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total TXs</span>
                                 </div>
                             </div>
 
-                            {/* Secondary Stats Row */}
-                            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-                                {/* Bridge Activity */}
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Bridge Activity</span>
+                            {/* Row 2: Bridge & DeFi */}
+                            <div style={{ display: 'flex', width: '100%', height: '33.33%', borderBottom: '1px solid #f3f4f6' }}>
+                                {/* Bridge */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%', borderRight: '1px solid #f3f4f6', padding: '10px' }}>
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Bridge Activity</span>
                                     <div style={{ display: 'flex', gap: '20px' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '20px', fontWeight: 700, color: '#334155' }}>{bridgeToEth}</span>
-                                            <span style={{ fontSize: '9px', color: '#94a3b8' }}>Base→ETH</span>
+                                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>{bridgeToEth}</span>
+                                            <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 600 }}>Base→ETH</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '20px', fontWeight: 700, color: '#334155' }}>{bridgeFromEth}</span>
-                                            <span style={{ fontSize: '9px', color: '#94a3b8' }}>ETH→Base</span>
+                                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>{bridgeFromEth}</span>
+                                            <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 600 }}>ETH→Base</span>
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* DeFi Activity */}
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>DeFi Activity</span>
-                                    <div style={{ display: 'flex', gap: '16px' }}>
+                                {/* DeFi */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%', padding: '10px' }}>
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>DeFi Activity</span>
+                                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '18px', fontWeight: 700, color: '#334155' }}>{defiSwap}</span>
-                                            <span style={{ fontSize: '9px', color: '#94a3b8' }}>Swap</span>
+                                            <span style={{ fontSize: '20px', fontWeight: 900, color: '#1e293b' }}>{defiSwap}</span>
+                                            <span style={{ fontSize: '8px', color: '#94a3b8', fontWeight: 600 }}>Swap</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '18px', fontWeight: 700, color: '#334155' }}>{defiLend}</span>
-                                            <span style={{ fontSize: '9px', color: '#94a3b8' }}>Lend</span>
+                                            <span style={{ fontSize: '20px', fontWeight: 900, color: '#1e293b' }}>{defiLend}</span>
+                                            <span style={{ fontSize: '8px', color: '#94a3b8', fontWeight: 600 }}>Lend</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '18px', fontWeight: 700, color: '#334155' }}>{defiBorrow}</span>
-                                            <span style={{ fontSize: '9px', color: '#94a3b8' }}>Borrow</span>
+                                            <span style={{ fontSize: '20px', fontWeight: 900, color: '#1e293b' }}>{defiBorrow}</span>
+                                            <span style={{ fontSize: '8px', color: '#94a3b8', fontWeight: 600 }}>Borrow</span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '20px', fontWeight: 900, color: '#1e293b' }}>{defiStake}</span>
+                                            <span style={{ fontSize: '8px', color: '#94a3b8', fontWeight: 600 }}>Stake</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Footer / Streak */}
-                            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', marginTop: 'auto', backgroundColor: '#eff6ff', padding: '12px 20px', borderRadius: '16px', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#0052FF', textTransform: 'uppercase' }}>Current Streak</span>
-                                    <span style={{ fontSize: '20px', fontWeight: 800, color: '#0052FF' }}>{currentStreak}</span>
+                            {/* Row 3: Streaks & Deployed */}
+                            <div style={{ display: 'flex', width: '100%', height: '33.33%' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%', borderRight: '1px solid #f3f4f6', backgroundColor: '#eff6ff' }}>
+                                    <span style={{ fontSize: '32px', fontWeight: 900, color: '#0052FF' }}>{currentStreak}</span>
+                                    <span style={{ fontSize: '11px', color: '#0052FF', fontWeight: 700, textTransform: 'uppercase' }}>Current Streak</span>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Best Streak</span>
-                                    <span style={{ fontSize: '20px', fontWeight: 800, color: '#334155' }}>{longestStreak}</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%', borderRight: '1px solid #f3f4f6' }}>
+                                    <span style={{ fontSize: '32px', fontWeight: 900, color: '#1e293b' }}>{longestStreak}</span>
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Best Streak</span>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Contracts</span>
-                                    <span style={{ fontSize: '20px', fontWeight: 800, color: '#334155' }}>{deployed}</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%' }}>
+                                    <span style={{ fontSize: '32px', fontWeight: 900, color: '#1e293b' }}>{deployed}</span>
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Contracts</span>
                                 </div>
                             </div>
 
@@ -204,7 +235,7 @@ export async function GET(req: NextRequest) {
             ),
             {
                 width: 1200,
-                height: 630,
+                height: 800,
             },
         );
     } catch (e: any) {
