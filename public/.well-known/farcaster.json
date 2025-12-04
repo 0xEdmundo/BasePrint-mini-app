@@ -10,11 +10,11 @@
   "frame": {
     "version": "1",
     "name": "BasePrint",
-    "iconUrl": "https://baseprint.vercel.app/farcaster-icon.png",
+    "iconUrl": "https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png",
     "homeUrl": "https://baseprint.vercel.app",
-    "imageUrl": "https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed",
+    "imageUrl": "https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png",
     "buttonTitle": "View BasePrint",
-    "splashImageUrl": "https://baseprint.vercel.app/opengraph-image.png",
+    "splashImageUrl": "https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png",
     "splashBackgroundColor": "#0052FF",
     "webhookUrl": "https://baseprint.vercel.app/api/webhook",
     "castShareUrl": "https://baseprint.vercel.app",
@@ -22,7 +22,7 @@
     "description": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
     "ogTitle": "BasePrint Identity",
     "ogDescription": "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
-    "ogImageUrl": "https://baseprint.vercel.app/opengraph-image.png",
+    "ogImageUrl": "https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png",
     "primaryCategory": "social",
     "tags": [
       "identity",
