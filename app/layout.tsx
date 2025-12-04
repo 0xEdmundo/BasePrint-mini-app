@@ -18,8 +18,30 @@ export default function RootLayout({
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://baseprint.vercel.app"),
   title: "BasePrint Identity",
   description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+  openGraph: {
+    title: "BasePrint Identity",
+    description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    url: "https://baseprint.vercel.app",
+    siteName: "BasePrint",
+    type: "website",
+    images: [
+      {
+        url: "https://baseprint.vercel.app/farcaster-icon.png",
+        width: 1200,
+        height: 630,
+        alt: "BasePrint Identity Card",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BasePrint Identity",
+    description: "Turn your Farcaster profile, Neynar score, and Base wallet activity into a single onchain ID card.",
+    images: ["https://baseprint.vercel.app/farcaster-icon.png"],
+  },
   other: {
     "fc:frame": JSON.stringify({
       "version": "next",
@@ -35,5 +57,6 @@ export const metadata: Metadata = {
         }
       }
     })
-  }
+  },
+  manifest: "/manifest.json",
 };
