@@ -16,7 +16,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const vercelUrl = process.env.VERCEL_URL;
   const host = vercelUrl ? `https://${vercelUrl}` : 'https://baseprint.vercel.app';
 
-  let ogImageUrl = `${host}/opengraph-image.png`;
+  let ogImageUrl = 'https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png';
 
   // 1. If tokenId is present, fetch specific NFT metadata
   if (searchParams.tokenId) {
@@ -57,7 +57,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   // Always return metadata to ensure Home URL Embed works
   const miniAppEmbed = {
     version: '1',
-    imageUrl: ogImageUrl,
+    imageUrl: searchParams.tokenId ? ogImageUrl : 'https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png',
     button: {
       title: 'View BasePrint',
       action: {

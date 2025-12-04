@@ -30,7 +30,7 @@ export default function RootLayout({
 }) {
   const miniAppEmbed = {
     version: '1',
-    imageUrl: 'https://mwpoimjhvrcx9ep4.public.blob.vercel-storage.com/URL%20Embed',
+    imageUrl: 'https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png',
     button: {
       title: 'View BasePrint',
       action: {

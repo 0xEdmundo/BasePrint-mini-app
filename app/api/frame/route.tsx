@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
         ? `https://${process.env.VERCEL_URL}`
         : 'https://baseprint.vercel.app';
 
-    let imageUrl = `${host}/opengraph-image.png`;
+    let imageUrl = 'https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png';
     let buttonText = 'Mint BasePrint ID';
     let buttonTarget = 'https://baseprint.vercel.app';
 
