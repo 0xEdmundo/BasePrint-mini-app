@@ -102,9 +102,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         imgParams.append('fid', (neynarData?.fid || 0).toString());
         imgParams.append('isVerified', neynarData?.isVerified ? 'true' : 'false');
 
-        if (basenameData?.basename) {
-            imgParams.append('basename', basenameData.basename);
-        }
+        // Basename is handled client-side by OnchainKit, skip here
 
         if (etherscanData) {
             imgParams.append('walletAge', (etherscanData.walletAge || 0).toString());
