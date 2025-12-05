@@ -7,6 +7,8 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@metamask/sdk', 'pino', 'encoding'],
   },
+  // Allow ngrok and other dev origins
+  allowedDevOrigins: ['*.ngrok-free.dev', '*.ngrok.io'],
   // ----------------------------------------------------
 
   // Bu ayar, client-side (tarayıcı) paketlemesi sırasında Node.js'e özgü modülleri

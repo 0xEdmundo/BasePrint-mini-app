@@ -1,12 +1,14 @@
 "use client";
 
-import { Name } from '@coinbase/onchainkit/identity';
+import { Name, useName } from '@coinbase/onchainkit/identity';
 import { base } from 'wagmi/chains';
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useConnect, useDisconnect, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, type BaseError } from 'wagmi';
 import { parseEther } from 'viem';
 import sdk from '@farcaster/frame-sdk';
 import { useSearchParams } from 'next/navigation';
+import BottomNav from './BottomNav';
+import LookupContent from './LookupContent';
 
 // --- 1. CONFIG & API KEYS ---
 const CONTRACT_ADDRESS = '0x66fADf7f93A4407DD336C35cD09ccDA58559442b';
@@ -56,17 +58,23 @@ export default function HomeContent() {
         hash,
     });
 
+    // Use OnchainKit's useName hook for basename resolution (only when address is valid)
+    const { data: basename } = useName({
+        address: (address && address.length === 42) ? address as `0x${string}` : '0x0000000000000000000000000000000000000000',
+        chain: base
+    });
+
     const [loading, setLoading] = useState(false);
     const [showSplash, setShowSplash] = useState(true);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [userData, setUserData] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
-    const [basename, setBasename] = useState<string | null>(null);
     const [mintedTokenId, setMintedTokenId] = useState<string | null>(null);
     const [pendingTokenId, setPendingTokenId] = useState<string | null>(null);
     const [nftImage, setNftImage] = useState<string | null>(null);
 
     const [isFrameContext, setIsFrameContext] = useState(false);
+    const [currentTab, setCurrentTab] = useState<'myid' | 'lookup'>('myid');
 
     // Initialize Farcaster SDK and handle splash
     useEffect(() => {
@@ -78,8 +86,16 @@ export default function HomeContent() {
             }
             setTimeout(() => {
                 setShowSplash(false);
-                sdk.actions.ready(); // Signal that the app is ready
-                sdk.actions.addFrame(); // Prompt user to add the app
+                // Only call SDK actions if we're in Farcaster context
+                if (context?.user) {
+                    // Use .catch() for async Promise errors
+                    Promise.resolve(sdk.actions.ready()).catch((e) => {
+                        console.log('SDK ready() error (expected in some contexts):', e);
+                    });
+                    Promise.resolve(sdk.actions.addFrame()).catch((e) => {
+                        console.log('SDK addFrame() error (expected in some contexts):', e);
+                    });
+                }
             }, 1500);
         };
         init();
@@ -188,20 +204,7 @@ export default function HomeContent() {
                 addLog(`Etherscan error: ${e}`);
             }
 
-            // 3. BASENAME
-            try {
-                const basenameRes = await fetch(`/api/basename?address=${address}`, { cache: 'no-store' });
-                if (basenameRes.ok) {
-                    const data = await basenameRes.json();
-                    addLog(`Basename Raw: ${JSON.stringify(data)}`);
-                    setBasename(data.basename);
-                } else {
-                    setBasename(null);
-                }
-            } catch (e) {
-                addLog(`Basename error: ${e}`);
-                setBasename(null);
-            }
+            // Basename is now handled by useName hook above
 
             setStats(statsData);
             setUserData(farcasterData);
@@ -383,7 +386,7 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
     }
 
     return (
-        <div className="min-h-screen bg-slate-100 font-sans text-slate-900 flex flex-col items-center justify-center p-4" >
+        <div className="min-h-screen bg-slate-100 font-sans text-slate-900 flex flex-col items-center justify-start pt-4 pb-20 px-4">
             <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100 relative">
                 {/* HEADER */}
                 <div className="bg-white/80 backdrop-blur-md p-4 flex justify-between items-center absolute top-0 w-full z-20">
@@ -394,9 +397,16 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
                         </span>
                     </div>
                     {isConnected && (
-                        <div className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded-full text-gray-500">
-                            {address?.slice(0, 6)}...{address?.slice(-4)}
-                        </div>
+                        <button
+                            onClick={() => disconnect()}
+                            className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded-full text-gray-500 hover:bg-red-100 hover:text-red-500 transition-colors cursor-pointer flex items-center gap-1"
+                            title="Click to disconnect"
+                        >
+                            <span>{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </button>
                     )}
                 </div>
 
@@ -415,18 +425,14 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
                         <div className="w-full px-8">
                             <button
                                 onClick={() => {
-                                    let preferredConnector;
-                                    if (isFrameContext) {
-                                        // In Frame/Base App context, prefer the injected connector (Metamask/Base App provider)
-                                        preferredConnector = connectors.find(c => c.id === 'injected');
+                                    // In Farcaster context: use farcasterFrame (connectors[0])
+                                    // In web browser: prefer injected (MetaMask, Rabby, OKX) or coinbaseWallet
+                                    const connector = isFrameContext
+                                        ? connectors[0]
+                                        : connectors.find(c => c.id === 'injected') || connectors.find(c => c.id === 'coinbaseWalletSDK') || connectors[1];
+                                    if (connector) {
+                                        connect({ connector });
                                     }
-
-                                    if (!preferredConnector) {
-                                        // Default fallback
-                                        preferredConnector = connectors.find((c) => c.id === 'coinbaseWalletSDK') || connectors[0];
-                                    }
-
-                                    connect({ connector: preferredConnector });
                                 }}
                                 className="w-full bg-[#0052FF] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mb-3"
                             >
@@ -459,15 +465,23 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
 
                                         {/* YENİ PROFİL DÜZENİ: Resim Solda, Bilgiler Sağda */}
                                         <div className="flex items-start gap-4">
-                                            {/* SOL: Profil Resmi */}
+                                            {/* SOL: Profil Resmi - Web'de Base Logo, Farcaster'da PFP */}
                                             <div className="relative">
-                                                <img
-                                                    src={userData.pfp || 'https://zora.co/assets/icon.png'}
-                                                    className="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-slate-800 object-cover"
-                                                    alt="pfp"
-                                                />
-                                                {/* Verified Badge Resmin Üzerinde (Opsiyonel) veya Yanında */}
-                                                {userData.isVerified && (
+                                                {isFrameContext ? (
+                                                    <img
+                                                        src={userData.pfp || 'https://zora.co/assets/icon.png'}
+                                                        className="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-slate-800 object-cover"
+                                                        alt="pfp"
+                                                    />
+                                                ) : (
+                                                    <div className="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-[#0052FF] flex items-center justify-center">
+                                                        <svg viewBox="0 0 111 111" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
+                                                            <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="white" />
+                                                        </svg>
+                                                    </div>
+                                                )}
+                                                {/* Verified Badge */}
+                                                {userData.isVerified && isFrameContext && (
                                                     <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1 border border-white">
                                                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -478,26 +492,29 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
 
                                             {/* SAĞ: Bilgiler */}
                                             <div className="flex flex-col flex-1 min-w-0">
-                                                {/* 1. FID (En Üst) */}
+                                                {/* 1. FID veya Web Badge */}
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-[10px] text-blue-200 font-mono opacity-80 uppercase tracking-widest">
-                                                        FID: {userData.fid}
+                                                        {isFrameContext ? `FID: ${userData.fid}` : 'BASE WALLET'}
                                                     </span>
                                                     <AppLogo className="w-6 h-6 opacity-80" />
                                                 </div>
 
-                                                {/* 2. Display Name (Kalın) */}
+                                                {/* 2. Display Name - Web'de basename veya adres */}
                                                 <h3 className="text-xl font-black tracking-tight leading-tight truncate mt-1">
-                                                    {userData.username}
+                                                    {isFrameContext
+                                                        ? userData.username
+                                                        : (basename || `${address?.slice(0, 6)}...${address?.slice(-4)}`)}
                                                 </h3>
 
-                                                {/* 3. Handle (@username) */}
+                                                {/* 3. Handle - Web'de tam adres */}
                                                 <span className="text-xs text-blue-200 font-medium truncate">
-                                                    @{userData.username}
+                                                    {isFrameContext
+                                                        ? `@${userData.username}`
+                                                        : `${address?.slice(0, 10)}...${address?.slice(-8)}`}
                                                 </span>
 
-                                                {/* 4. Basename (En Alt) */}
-                                                {/* 4. Basename (En Alt) */}
+                                                {/* 4. Basename */}
                                                 <div className="mt-2">
                                                     <div className="text-[10px] font-bold text-[#0052FF] bg-white px-2 py-0.5 rounded-full inline-block shadow-sm">
                                                         <Name address={address} chain={base} />
@@ -506,20 +523,22 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
                                             </div>
                                         </div>
 
-                                        {/* Neynar Score Bar */}
+                                        {/* Neynar Score Bar - Web'de Wallet Age göster */}
                                         <div className="mt-auto">
                                             <div className="flex justify-between items-end mb-1">
                                                 <span className="text-[10px] text-blue-200 font-bold uppercase">
-                                                    Neynar Score
+                                                    {isFrameContext ? 'Neynar Score' : 'Wallet Age'}
                                                 </span>
                                                 <span className="text-xl font-black leading-none">
-                                                    {userData.score.toFixed(2)}
+                                                    {isFrameContext
+                                                        ? userData.score.toFixed(2)
+                                                        : `${stats.walletAge} Days`}
                                                 </span>
                                             </div>
                                             <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full bg-gradient-to-r from-green-300 to-green-500"
-                                                    style={{ width: `${userData.score * 100}%` }}
+                                                    style={{ width: `${isFrameContext ? userData.score * 100 : Math.min((stats.walletAge / 365) * 100, 100)}%` }}
                                                 ></div>
                                             </div>
                                         </div>
@@ -694,6 +713,37 @@ You now own the ultimate on-chain identity card. Check out the unique NFT that c
                     </div>
                 )}
             </div>
-        </div >
+
+            {/* Bottom Navigation */}
+            <BottomNav currentTab={currentTab} onTabChange={setCurrentTab} />
+
+            {/* Lookup Tab Content */}
+            {currentTab === 'lookup' && (
+                <div className="fixed inset-0 bg-slate-100 z-40 pt-4 pb-20 px-4 overflow-auto">
+                    <div className="w-full max-w-sm mx-auto bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100">
+                        {/* Header */}
+                        <div className="bg-white/80 backdrop-blur-md p-4 flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <AppLogo className="w-6 h-6" />
+                                <span className="font-bold text-slate-900 tracking-tight">BasePrint</span>
+                            </div>
+                            {isConnected && (
+                                <button
+                                    onClick={() => disconnect()}
+                                    className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded-full text-gray-500 hover:bg-red-100 hover:text-red-500 transition-colors cursor-pointer flex items-center gap-1"
+                                    title="Click to disconnect"
+                                >
+                                    <span>{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+                        <LookupContent onSwitchToMyId={() => setCurrentTab('myid')} />
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

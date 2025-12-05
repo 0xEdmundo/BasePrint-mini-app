@@ -317,18 +317,10 @@ export async function getNeynarData(address: string) {
         return null;
     }
 }
-
 // --- BASENAME DATA ---
+// Basename resolution is handled client-side by OnchainKit's Name component
 export async function getBasenameData(address: string) {
-    if (!address) return null;
-    try {
-        const url = `https://resolver-api.basename.app/v1/basenames/${address}`;
-        const response = await fetch(url, { headers: { 'accept': 'application/json' } });
-        if (!response.ok) return null;
-        const data = await response.json();
-        return data && data.name ? { basename: data.name } : null;
-    } catch (error) {
-        console.error('getBasenameData error:', error);
-        return null;
-    }
+    // OnchainKit <Name> component handles basename display in UI
+    // Server-side APIs are too slow/unreliable
+    return null;
 }
