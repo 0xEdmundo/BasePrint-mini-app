@@ -23,16 +23,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     try {
         // FIRST: Check for cached IPFS CID - if exists, skip API calls entirely
         let ipfsCid: string | null = null;
-        for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-                const result = await redis.get(`nft:${tokenId}:ipfs`);
-                if (result && typeof result === 'string') {
-                    ipfsCid = result;
-                    break;
-                }
-            } catch (e) {
-                if (attempt < 2) await new Promise(r => setTimeout(r, 100));
+        try {
+            const result = await redis.get(`nft:${tokenId}:ipfs`);
+            if (result && typeof result === 'string') {
+                ipfsCid = result;
             }
+        } catch (e) {
+            console.log(`Redis error for token ${tokenId}:`, e);
         }
 
         // If IPFS CID exists, return cached metadata WITHOUT external API calls
