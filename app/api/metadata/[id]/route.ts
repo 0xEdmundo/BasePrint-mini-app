@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPublicClient, http, parseAbi } from 'viem';
 import { base } from 'viem/chains';
+import { kv } from '@vercel/kv';
 import { getEtherscanData, getNeynarData, getBasenameData } from '../../../lib/api-helpers';
 
 const client = createPublicClient({
@@ -122,7 +123,21 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             ? 'http://localhost:3000'
             : 'https://baseprint.vercel.app';
 
-        const imageUrl = `${baseUrl}/api/image?${imgParams.toString()}`;
+        const dynamicImageUrl = `${baseUrl}/api/image?${imgParams.toString()}`;
+
+        // Check if we have a cached IPFS image for this token
+        let imageUrl = dynamicImageUrl;
+        try {
+            const ipfsCid = await kv.get(`nft:${tokenId}:ipfs`);
+            if (ipfsCid && typeof ipfsCid === 'string') {
+                // Use IPFS gateway URL for the cached image
+                imageUrl = `https://nftstorage.link/ipfs/${ipfsCid}`;
+                console.log(`Using cached IPFS image for token ${tokenId}: ${imageUrl}`);
+            }
+        } catch (e) {
+            // KV might not be set up, use dynamic image
+            console.log('KV not available, using dynamic image');
+        }
 
         // Determine username and mint date for metadata
         const finalUsername = hasContractData ? storedUsername : (neynarData?.username || 'Explorer');

@@ -113,8 +113,35 @@ export default function HomeContent() {
             setMintedTokenId(pendingTokenId);
             setShowSuccessModal(true);
             addLog(`Mint confirmed! Token ID: ${pendingTokenId}`);
+
+            // Upload image to IPFS for permanent storage
+            const uploadToIPFS = async () => {
+                try {
+                    const baseUrl = window.location.origin;
+                    const imageUrl = `${baseUrl}/api/image-redirect/${pendingTokenId}?address=${address}`;
+
+                    addLog(`Uploading to IPFS: ${imageUrl}`);
+                    const response = await fetch('/api/upload-to-ipfs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageUrl, tokenId: pendingTokenId }),
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        addLog(`IPFS upload success: ${data.gatewayUrl}`);
+                    } else {
+                        const error = await response.json();
+                        addLog(`IPFS upload failed: ${error.error}`);
+                    }
+                } catch (err) {
+                    addLog(`IPFS upload error: ${err}`);
+                }
+            };
+
+            uploadToIPFS();
         }
-    }, [isConfirmed, pendingTokenId]);
+    }, [isConfirmed, pendingTokenId, address]);
 
     // Fetch NFT image when mintedTokenId is set
     useEffect(() => {
