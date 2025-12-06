@@ -133,16 +133,30 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         // Check if we have a cached IPFS image for this token
         let imageUrl = dynamicImageUrl;
-        try {
-            const ipfsCid = await redis.get(`nft:${tokenId}:ipfs`);
-            if (ipfsCid && typeof ipfsCid === 'string') {
-                // Always use public gateway for metadata (no auth required)
-                imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
-                console.log(`Using cached IPFS image for token ${tokenId}: ${imageUrl}`);
+        let ipfsCid: string | null = null;
+
+        // Try to get CID from Redis with retry
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                const result = await redis.get(`nft:${tokenId}:ipfs`);
+                if (result && typeof result === 'string') {
+                    ipfsCid = result;
+                    break;
+                }
+            } catch (e) {
+                console.log(`Redis attempt ${attempt + 1} failed for token ${tokenId}:`, e);
+                if (attempt < 2) {
+                    await new Promise(r => setTimeout(r, 100)); // Wait before retry
+                }
             }
-        } catch (e) {
-            // KV might not be set up, use dynamic image
-            console.log('KV not available, using dynamic image');
+        }
+
+        if (ipfsCid) {
+            // Always use public gateway for metadata (no auth required)
+            imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
+            console.log(`Token ${tokenId}: Using IPFS image ${ipfsCid}`);
+        } else {
+            console.log(`Token ${tokenId}: No IPFS cache found, using dynamic image`);
         }
 
         // Determine username and mint date for metadata
