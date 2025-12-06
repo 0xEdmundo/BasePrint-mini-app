@@ -131,80 +131,76 @@ export async function GET(req: NextRequest) {
                             <div style={{ position: 'absolute', right: '-50px', top: '-50px', width: '300px', height: '300px', backgroundColor: '#22d3ee', opacity: 0.1, borderRadius: '50%', filter: 'blur(60px)' }}></div>
                         </div>
 
-                        {/* BOTTOM SECTION: Stats - 2 Column Layout */}
+                        {/* BOTTOM SECTION: Stats - 3-3-2 Layout */}
                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1, backgroundColor: 'white' }}>
 
-                            {/* Row 1: Main Metrics - 2x2 Grid */}
-                            <div style={{ display: 'flex', width: '100%', height: '160px', borderBottom: '1px solid #e5e7eb' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%', borderRight: '1px solid #e5e7eb' }}>
-                                    <span style={{ fontSize: '48px', fontWeight: 900, color: '#1e293b' }}>{daysActive}</span>
-                                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Active Days</span>
+                            {/* Row 1: Active Days | Wallet Age | Total TX */}
+                            <div style={{ display: 'flex', width: '100%', flex: 1, borderBottom: '1px solid #e5e7eb' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%', borderRight: '1px solid #e5e7eb' }}>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#1e293b' }}>{daysActive}</span>
+                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Active Days</span>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%' }}>
-                                    <span style={{ fontSize: '48px', fontWeight: 900, color: '#1e293b' }}>{walletAge}</span>
-                                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Wallet Age</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%', borderRight: '1px solid #e5e7eb' }}>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#1e293b' }}>{walletAge}</span>
+                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Wallet Age</span>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.34%' }}>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#1e293b' }}>{txCount}</span>
+                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Total TXs</span>
                                 </div>
                             </div>
 
-                            {/* Row 2: TXs and Bridge */}
-                            <div style={{ display: 'flex', width: '100%', height: '160px', borderBottom: '1px solid #e5e7eb' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%', borderRight: '1px solid #e5e7eb' }}>
-                                    <span style={{ fontSize: '48px', fontWeight: 900, color: '#1e293b' }}>{txCount}</span>
-                                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Total TXs</span>
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%' }}>
-                                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Bridge Activity</span>
-                                    <div style={{ display: 'flex', gap: '32px' }}>
+                            {/* Row 2: Bridge | DeFi | Contracts */}
+                            <div style={{ display: 'flex', width: '100%', flex: 1, borderBottom: '1px solid #e5e7eb' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%', borderRight: '1px solid #e5e7eb' }}>
+                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Bridge</span>
+                                    <div style={{ display: 'flex', gap: '16px' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '32px', fontWeight: 900, color: '#1e293b' }}>{bridgeToEth}</span>
-                                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Base→ETH</span>
+                                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>{bridgeToEth}</span>
+                                            <span style={{ fontSize: '9px', color: '#94a3b8' }}>→ETH</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '32px', fontWeight: 900, color: '#1e293b' }}>{bridgeFromEth}</span>
-                                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>ETH→Base</span>
+                                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>{bridgeFromEth}</span>
+                                            <span style={{ fontSize: '9px', color: '#94a3b8' }}>←ETH</span>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Row 3: DeFi and Streaks */}
-                            <div style={{ display: 'flex', width: '100%', height: '160px', borderBottom: '1px solid #e5e7eb' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%', borderRight: '1px solid #e5e7eb' }}>
-                                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>DeFi Activity</span>
-                                    <div style={{ display: 'flex', gap: '20px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.33%', borderRight: '1px solid #e5e7eb' }}>
+                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>DeFi</span>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>{defiSwap}</span>
-                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>Swap</span>
+                                            <span style={{ fontSize: '18px', fontWeight: 900, color: '#1e293b' }}>{defiLend}</span>
+                                            <span style={{ fontSize: '8px', color: '#94a3b8' }}>Lend</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>{defiLend}</span>
-                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>Lend</span>
+                                            <span style={{ fontSize: '18px', fontWeight: 900, color: '#1e293b' }}>{defiBorrow}</span>
+                                            <span style={{ fontSize: '8px', color: '#94a3b8' }}>Borrow</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>{defiBorrow}</span>
-                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>Borrow</span>
+                                            <span style={{ fontSize: '18px', fontWeight: 900, color: '#1e293b' }}>{defiSwap}</span>
+                                            <span style={{ fontSize: '8px', color: '#94a3b8' }}>Swap</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>{defiStake}</span>
-                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>Stake</span>
+                                            <span style={{ fontSize: '18px', fontWeight: 900, color: '#1e293b' }}>{defiStake}</span>
+                                            <span style={{ fontSize: '8px', color: '#94a3b8' }}>Stake</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%', backgroundColor: '#eff6ff' }}>
-                                    <span style={{ fontSize: '48px', fontWeight: 900, color: '#0052FF' }}>{currentStreak}</span>
-                                    <span style={{ fontSize: '14px', color: '#0052FF', fontWeight: 700, textTransform: 'uppercase' }}>Current Streak</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '33.34%' }}>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#1e293b' }}>{deployed}</span>
+                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Contracts</span>
                                 </div>
                             </div>
 
-                            {/* Row 4: Best Streak and Contracts */}
+                            {/* Row 3: Best Streak | Current Streak */}
                             <div style={{ display: 'flex', width: '100%', flex: 1 }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%', borderRight: '1px solid #e5e7eb' }}>
-                                    <span style={{ fontSize: '48px', fontWeight: 900, color: '#1e293b' }}>{longestStreak}</span>
-                                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Best Streak</span>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#1e293b' }}>{longestStreak}</span>
+                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Best Streak</span>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%' }}>
-                                    <span style={{ fontSize: '48px', fontWeight: 900, color: '#1e293b' }}>{deployed}</span>
-                                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Contracts</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '50%', backgroundColor: '#eff6ff' }}>
+                                    <span style={{ fontSize: '36px', fontWeight: 900, color: '#0052FF' }}>{currentStreak}</span>
+                                    <span style={{ fontSize: '11px', color: '#0052FF', fontWeight: 700, textTransform: 'uppercase' }}>Current Streak</span>
                                 </div>
                             </div>
                         </div>
