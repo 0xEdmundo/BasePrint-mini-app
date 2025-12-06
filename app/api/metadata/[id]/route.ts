@@ -32,53 +32,18 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             console.log(`Redis error for token ${tokenId}:`, e);
         }
 
-        // If IPFS CID exists, return cached metadata WITHOUT external API calls
+        // If IPFS CID exists, return INSTANTLY without ANY external calls
         if (ipfsCid) {
-            const [statsRes, ownerRes] = await Promise.all([
-                client.readContract({
-                    address: CONTRACT,
-                    abi: parseAbi(['function stats(uint256) view returns (string username, uint256 neynarScore, uint256 txCount, uint256 daysActive, string mintDate)']),
-                    functionName: 'stats',
-                    args: [BigInt(tokenId)],
-                }),
-                client.readContract({
-                    address: CONTRACT,
-                    abi: parseAbi(['function ownerOf(uint256) view returns (address)']),
-                    functionName: 'ownerOf',
-                    args: [BigInt(tokenId)],
-                })
-            ]);
-
-            const [username, neynarScore, txCount, daysActive, mintDate] = statsRes as [string, bigint, bigint, bigint, string];
-            const owner = ownerRes as string;
-
             return NextResponse.json({
                 name: `BasePrint #${tokenId}`,
-                description: `Onchain identity snapshot for ${username}. Minted on ${mintDate}. This NFT captures Farcaster profile data and Base chain activity.`,
+                description: `Onchain identity snapshot. This NFT captures Farcaster profile data and Base chain activity.`,
                 image: `https://gateway.pinata.cloud/ipfs/${ipfsCid}`,
                 external_url: 'https://baseprint.vercel.app',
                 attributes: [
-                    { trait_type: 'FID', value: 0 },
-                    { trait_type: 'Username', value: username },
-                    { trait_type: 'Display Name', value: username },
-                    { trait_type: 'Neynar Score', value: Number(neynarScore) / 100 },
-                    { trait_type: 'Power Badge', value: 'No' },
-                    { trait_type: 'Wallet Address', value: owner },
-                    { trait_type: 'Wallet Age (Days)', value: 0 },
-                    { trait_type: 'Active Days', value: Number(daysActive) },
-                    { trait_type: 'Total Transactions', value: Number(txCount) },
-                    { trait_type: 'Current Streak (Days)', value: 0 },
-                    { trait_type: 'Longest Streak (Days)', value: 0 },
-                    { trait_type: 'Bridge: Base→ETH', value: 0 },
-                    { trait_type: 'Bridge: ETH→Base', value: 0 },
-                    { trait_type: 'DeFi: Lending', value: 0 },
-                    { trait_type: 'DeFi: Borrowing', value: 0 },
-                    { trait_type: 'DeFi: Swapping', value: 0 },
-                    { trait_type: 'DeFi: Staking', value: 0 },
-                    { trait_type: 'Deployed Contracts', value: 0 },
-                    { trait_type: 'Mint Date', value: mintDate },
                     { trait_type: 'Data Source', value: 'IPFS Cached' },
                 ]
+            }, {
+                headers: { 'Cache-Control': 'public, max-age=3600' }
             });
         }
 
