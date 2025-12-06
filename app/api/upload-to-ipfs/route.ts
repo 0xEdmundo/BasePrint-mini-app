@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 
-const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY || '';
+const PINATA_API_KEY = process.env.PINATA_API_KEY || '';
+const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY || '';
 
 // Initialize Redis with Vercel KV environment variables
 const redis = new Redis({
@@ -12,8 +13,9 @@ const redis = new Redis({
 // Store IPFS CID for a token
 export async function POST(req: NextRequest) {
     try {
-        if (!NFT_STORAGE_KEY) {
-            return NextResponse.json({ error: 'NFT_STORAGE_KEY not configured' }, { status: 500 });
+        if (!PINATA_API_KEY || !PINATA_SECRET_KEY) {
+            console.error('Pinata keys not configured');
+            return NextResponse.json({ error: 'Pinata API keys not configured' }, { status: 500 });
         }
 
         const { imageUrl, tokenId } = await req.json();
@@ -31,12 +33,11 @@ export async function POST(req: NextRequest) {
                         success: true,
                         cid: existingCid,
                         ipfsUrl: `ipfs://${existingCid}`,
-                        gatewayUrl: `https://nftstorage.link/ipfs/${existingCid}`,
+                        gatewayUrl: `https://gateway.pinata.cloud/ipfs/${existingCid}`,
                         cached: true
                     });
                 }
             } catch (e) {
-                // KV might not be set up, continue with upload
                 console.log('KV not available, uploading fresh');
             }
         }
@@ -45,38 +46,52 @@ export async function POST(req: NextRequest) {
         console.log('Fetching image from:', imageUrl);
         const imageResponse = await fetch(imageUrl);
         if (!imageResponse.ok) {
+            console.error('Failed to fetch image:', imageResponse.status);
             return NextResponse.json({ error: 'Failed to fetch image', status: imageResponse.status }, { status: 500 });
         }
 
-        const imageBlob = await imageResponse.blob();
-        console.log('Image blob size:', imageBlob.size);
+        const imageBuffer = await imageResponse.arrayBuffer();
+        console.log('Image buffer size:', imageBuffer.byteLength);
 
-        // 2. Upload to NFT.Storage
-        const uploadResponse = await fetch('https://api.nft.storage/upload', {
+        // 2. Upload to Pinata
+        const formData = new FormData();
+        const blob = new Blob([imageBuffer], { type: 'image/png' });
+        formData.append('file', blob, `baseprint-${tokenId || 'image'}.png`);
+
+        // Add metadata
+        const metadata = JSON.stringify({
+            name: `BasePrint NFT #${tokenId || 'unknown'}`,
+        });
+        formData.append('pinataMetadata', metadata);
+
+        console.log('Uploading to Pinata...');
+        const uploadResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${NFT_STORAGE_KEY}`,
+                'pinata_api_key': PINATA_API_KEY,
+                'pinata_secret_api_key': PINATA_SECRET_KEY,
             },
-            body: imageBlob,
+            body: formData,
         });
 
         if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
-            console.error('NFT.Storage upload failed:', errorText);
+            console.error('Pinata upload failed:', errorText);
             return NextResponse.json({ error: 'Failed to upload to IPFS', details: errorText }, { status: 500 });
         }
 
         const uploadData = await uploadResponse.json();
-        console.log('NFT.Storage response:', uploadData);
+        console.log('Pinata response:', uploadData);
 
-        // NFT.Storage returns { ok: true, value: { cid: "...", ... } }
-        if (uploadData.ok && uploadData.value?.cid) {
-            const cid = uploadData.value.cid;
+        // Pinata returns { IpfsHash: "...", PinSize: ..., Timestamp: "..." }
+        if (uploadData.IpfsHash) {
+            const cid = uploadData.IpfsHash;
 
             // Store CID in KV if available and tokenId provided
             if (tokenId) {
                 try {
                     await redis.set(`nft:${tokenId}:ipfs`, cid);
+                    console.log('Stored CID in Redis:', cid);
                 } catch (e) {
                     console.log('Could not cache to KV:', e);
                 }
@@ -86,10 +101,10 @@ export async function POST(req: NextRequest) {
                 success: true,
                 cid,
                 ipfsUrl: `ipfs://${cid}`,
-                gatewayUrl: `https://nftstorage.link/ipfs/${cid}`,
+                gatewayUrl: `https://gateway.pinata.cloud/ipfs/${cid}`,
             });
         } else {
-            return NextResponse.json({ error: 'Invalid response from NFT.Storage', data: uploadData }, { status: 500 });
+            return NextResponse.json({ error: 'Invalid response from Pinata', data: uploadData }, { status: 500 });
         }
 
     } catch (error: any) {
@@ -114,7 +129,7 @@ export async function GET(req: NextRequest) {
                 success: true,
                 cid,
                 ipfsUrl: `ipfs://${cid}`,
-                gatewayUrl: `https://nftstorage.link/ipfs/${cid}`,
+                gatewayUrl: `https://gateway.pinata.cloud/ipfs/${cid}`,
             });
         } else {
             return NextResponse.json({ error: 'No IPFS data found for this token' }, { status: 404 });
