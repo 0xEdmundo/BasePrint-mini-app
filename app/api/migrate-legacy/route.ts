@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
         // Check for admin secret to prevent unauthorized access
         const { searchParams } = new URL(req.url);
         const secret = searchParams.get('secret');
+        const force = searchParams.get('force') === 'true'; // Force re-migration
 
         if (secret !== process.env.MIGRATION_SECRET) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -40,26 +41,53 @@ export async function POST(req: NextRequest) {
             try {
                 // Check if already migrated
                 const existingCid = await redis.get(`nft:${tokenId}:ipfs`);
-                if (existingCid) {
+                if (existingCid && !force) {
                     results.push({ tokenId, status: 'already_migrated', cid: existingCid as string });
                     continue;
                 }
 
-                // Get metadata to build image URL
+                // If force mode, delete existing CID first
+                if (existingCid && force) {
+                    await redis.del(`nft:${tokenId}:ipfs`);
+                    console.log(`Deleted existing CID for token ${tokenId}`);
+                }
+
+                // Get metadata to extract attributes
                 console.log(`Fetching metadata for token ${tokenId}...`);
                 const metadataRes = await fetch(`${host}/api/metadata/${tokenId}`);
                 const metadata = await metadataRes.json();
 
-                // The image URL in metadata is the dynamic URL
-                const imageUrl = metadata.image;
-                if (!imageUrl) {
-                    results.push({ tokenId, status: 'error', error: 'No image URL in metadata' });
-                    continue;
-                }
+                // Build dynamic image URL from attributes (bypasses cache)
+                const attrs = metadata.attributes || [];
+                const getAttr = (name: string) => {
+                    const attr = attrs.find((a: any) => a.trait_type === name);
+                    return attr?.value || '';
+                };
 
-                // Fetch the image
-                console.log(`Fetching image for token ${tokenId}...`);
-                const imageResponse = await fetch(imageUrl);
+                const dynamicImageUrl = `${host}/api/image?` + new URLSearchParams({
+                    username: getAttr('Username'),
+                    displayName: getAttr('Display Name'),
+                    fid: String(getAttr('FID')),
+                    score: String(getAttr('Neynar Score')),
+                    isVerified: getAttr('Power Badge') === 'Yes' ? 'true' : 'false',
+                    txCount: String(getAttr('Total Transactions')),
+                    daysActive: String(getAttr('Active Days')),
+                    walletAge: String(getAttr('Wallet Age (Days)')),
+                    bridgeToEth: String(getAttr('Bridge: Base→ETH')),
+                    bridgeFromEth: String(getAttr('Bridge: ETH→Base')),
+                    defiLend: String(getAttr('DeFi: Lending')),
+                    defiBorrow: String(getAttr('DeFi: Borrowing')),
+                    defiSwap: String(getAttr('DeFi: Swapping')),
+                    defiStake: String(getAttr('DeFi: Staking')),
+                    deployed: String(getAttr('Deployed Contracts')),
+                    longestStreak: String(getAttr('Longest Streak (Days)')),
+                    currentStreak: String(getAttr('Current Streak (Days)')),
+                    date: getAttr('Mint Date'),
+                }).toString();
+
+                // Fetch the fresh image from dynamic API
+                console.log(`Fetching fresh image for token ${tokenId}...`);
+                const imageResponse = await fetch(dynamicImageUrl);
                 if (!imageResponse.ok) {
                     results.push({ tokenId, status: 'error', error: `Failed to fetch image: ${imageResponse.status}` });
                     continue;
