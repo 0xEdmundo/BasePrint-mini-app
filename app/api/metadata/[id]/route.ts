@@ -195,33 +195,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         const dynamicImageUrl = `${baseUrl}/api/image?${imgParams.toString()}`;
 
-        // Check if we have a cached IPFS image for this token
-        let imageUrl = dynamicImageUrl;
-        let ipfsCid: string | null = null;
-
-        // Try to get CID from Redis with retry
-        for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-                const result = await redis.get(`nft:${tokenId}:ipfs`);
-                if (result && typeof result === 'string') {
-                    ipfsCid = result;
-                    break;
-                }
-            } catch (e) {
-                console.log(`Redis attempt ${attempt + 1} failed for token ${tokenId}:`, e);
-                if (attempt < 2) {
-                    await new Promise(r => setTimeout(r, 100)); // Wait before retry
-                }
-            }
-        }
-
-        if (ipfsCid) {
-            // Always use public gateway for metadata (no auth required)
-            imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
-            console.log(`Token ${tokenId}: Using IPFS image ${ipfsCid}`);
-        } else {
-            console.log(`Token ${tokenId}: No IPFS cache found, using dynamic image`);
-        }
+        // Use dynamic image URL since we already returned early if CID exists
+        const imageUrl = dynamicImageUrl;
 
         // Determine username and mint date for metadata
         const finalUsername = hasContractData ? storedUsername : (neynarData?.username || 'Explorer');
