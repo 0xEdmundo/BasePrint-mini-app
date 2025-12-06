@@ -4,8 +4,17 @@ export async function GET(req: NextRequest, { params }: { params: { tokenId: str
     const tokenId = params.tokenId;
     const host = 'https://baseprint.vercel.app';
 
-    // Get the NFT image URL
-    const imageUrl = `${host}/api/image-redirect/${tokenId}`;
+    // Get the actual image URL from metadata (IPFS if available)
+    let imageUrl = `${host}/api/image-redirect/${tokenId}`;
+    try {
+        const metadataRes = await fetch(`${host}/api/metadata/${tokenId}`);
+        const metadata = await metadataRes.json();
+        if (metadata.image) {
+            imageUrl = metadata.image;
+        }
+    } catch (e) {
+        console.log('Could not fetch metadata, using redirect URL');
+    }
 
     // Mini App launch URL
     const miniAppUrl = 'https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint';
