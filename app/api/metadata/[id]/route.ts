@@ -137,7 +137,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             const ipfsCid = await redis.get(`nft:${tokenId}:ipfs`);
             if (ipfsCid && typeof ipfsCid === 'string') {
                 // Use IPFS gateway URL for the cached image
-                imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
+                const pinataGateway = process.env.PINATA_GATEWAY || 'gateway.pinata.cloud';
+                imageUrl = `https://${pinataGateway}/ipfs/${ipfsCid}`;
                 console.log(`Using cached IPFS image for token ${tokenId}: ${imageUrl}`);
             }
         } catch (e) {
