@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: { tokenId: str
         version: "1",
         imageUrl: imageUrl,
         button: {
-            title: "🚀 Launch BasePrint",
+            title: "Check BasePrint 🔵",
             action: {
                 type: "launch_miniapp",
                 url: host,
