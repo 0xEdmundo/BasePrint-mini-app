@@ -3,8 +3,11 @@ import { Redis } from '@upstash/redis';
 
 const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY || '';
 
-// Initialize Redis from environment variables
-const redis = Redis.fromEnv();
+// Initialize Redis with Vercel KV environment variables
+const redis = new Redis({
+    url: process.env.KV_REST_API_URL!,
+    token: process.env.KV_REST_API_TOKEN!,
+});
 
 // Store IPFS CID for a token
 export async function POST(req: NextRequest) {

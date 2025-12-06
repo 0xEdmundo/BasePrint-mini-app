@@ -4,8 +4,11 @@ import { base } from 'viem/chains';
 import { Redis } from '@upstash/redis';
 import { getEtherscanData, getNeynarData, getBasenameData } from '../../../lib/api-helpers';
 
-// Initialize Redis from environment variables
-const redis = Redis.fromEnv();
+// Initialize Redis with Vercel KV environment variables
+const redis = new Redis({
+    url: process.env.KV_REST_API_URL!,
+    token: process.env.KV_REST_API_TOKEN!,
+});
 
 const client = createPublicClient({
     chain: base,
