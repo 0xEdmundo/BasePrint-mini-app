@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 
-const PINATA_API_KEY = process.env.PINATA_API_KEY || '';
-const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY || '';
+const PINATA_JWT = process.env.PINATA_JWT || '';
 
 // Initialize Redis with Vercel KV environment variables
 const redis = new Redis({
@@ -13,9 +12,9 @@ const redis = new Redis({
 // Store IPFS CID for a token
 export async function POST(req: NextRequest) {
     try {
-        if (!PINATA_API_KEY || !PINATA_SECRET_KEY) {
-            console.error('Pinata keys not configured');
-            return NextResponse.json({ error: 'Pinata API keys not configured' }, { status: 500 });
+        if (!PINATA_JWT) {
+            console.error('PINATA_JWT not configured');
+            return NextResponse.json({ error: 'Pinata JWT not configured' }, { status: 500 });
         }
 
         const { imageUrl, tokenId } = await req.json();
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
         const imageBuffer = await imageResponse.arrayBuffer();
         console.log('Image buffer size:', imageBuffer.byteLength);
 
-        // 2. Upload to Pinata
+        // 2. Upload to Pinata using JWT
         const formData = new FormData();
         const blob = new Blob([imageBuffer], { type: 'image/png' });
         formData.append('file', blob, `baseprint-${tokenId || 'image'}.png`);
@@ -68,8 +67,7 @@ export async function POST(req: NextRequest) {
         const uploadResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
             method: 'POST',
             headers: {
-                'pinata_api_key': PINATA_API_KEY,
-                'pinata_secret_api_key': PINATA_SECRET_KEY,
+                'Authorization': `Bearer ${PINATA_JWT}`,
             },
             body: formData,
         });
