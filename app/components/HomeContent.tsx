@@ -386,18 +386,27 @@ export default function HomeContent() {
             return;
         }
 
-        // Farcaster Mini App link with tokenId parameter
+        // Farcaster Mini App link
         const miniAppLink = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint`;
 
-        // Image Redirect Link (Short & Stable) - Pass address to force live data (bypassing contract indexer delay)
-        const imageLink = `https://baseprint.vercel.app/api/image-redirect/${mintedTokenId}?address=${address}`;
+        // Get the actual image URL from metadata (could be IPFS or dynamic)
+        let imageLink = `https://baseprint.vercel.app/api/image-redirect/${mintedTokenId}?address=${address}`;
+        try {
+            const metadataRes = await fetch(`/api/metadata/${mintedTokenId}?address=${address}`);
+            const metadata = await metadataRes.json();
+            if (metadata.image) {
+                imageLink = metadata.image;
+                addLog(`Share: Using image URL: ${imageLink}`);
+            }
+        } catch (e) {
+            addLog(`Share: Falling back to redirect URL`);
+        }
 
         const castText = `🎉 Congrats! Your BasePrint ID has been minted.
 
 You now own the ultimate on-chain identity card. Check out the unique NFT that combines your Farcaster, Neynar, and Base history.`;
 
         // Open Warpcast composer with both Mini App link and Image link
-        // Note: Warpcast supports multiple embeds via array
         const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(miniAppLink)}&embeds[]=${encodeURIComponent(imageLink)}`;
 
         sdk.actions.openUrl(warpcastUrl);
