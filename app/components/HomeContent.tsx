@@ -117,14 +117,20 @@ export default function HomeContent() {
             // Upload image to IPFS for permanent storage
             const uploadToIPFS = async () => {
                 try {
-                    const baseUrl = window.location.origin;
-                    const imageUrl = `${baseUrl}/api/image-redirect/${pendingTokenId}?address=${address}`;
+                    // First get the image URL from metadata
+                    const metadataRes = await fetch(`/api/metadata/${pendingTokenId}?address=${address}`);
+                    const metadata = await metadataRes.json();
 
-                    addLog(`Uploading to IPFS: ${imageUrl}`);
+                    if (!metadata.image) {
+                        addLog('IPFS upload skipped: no image URL in metadata');
+                        return;
+                    }
+
+                    addLog(`Uploading to IPFS: ${metadata.image}`);
                     const response = await fetch('/api/upload-to-ipfs', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ imageUrl, tokenId: pendingTokenId }),
+                        body: JSON.stringify({ imageUrl: metadata.image, tokenId: pendingTokenId }),
                     });
 
                     if (response.ok) {
