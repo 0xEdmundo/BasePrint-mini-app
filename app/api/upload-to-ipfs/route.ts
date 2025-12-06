@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 
 const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY || '';
+
+// Initialize Redis from environment variables
+const redis = Redis.fromEnv();
 
 // Store IPFS CID for a token
 export async function POST(req: NextRequest) {
@@ -19,7 +22,7 @@ export async function POST(req: NextRequest) {
         // Check if we already have an IPFS CID for this token
         if (tokenId) {
             try {
-                const existingCid = await kv.get(`nft:${tokenId}:ipfs`);
+                const existingCid = await redis.get(`nft:${tokenId}:ipfs`);
                 if (existingCid) {
                     return NextResponse.json({
                         success: true,
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
             // Store CID in KV if available and tokenId provided
             if (tokenId) {
                 try {
-                    await kv.set(`nft:${tokenId}:ipfs`, cid);
+                    await redis.set(`nft:${tokenId}:ipfs`, cid);
                 } catch (e) {
                     console.log('Could not cache to KV:', e);
                 }
@@ -102,7 +105,7 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const cid = await kv.get(`nft:${tokenId}:ipfs`);
+        const cid = await redis.get(`nft:${tokenId}:ipfs`);
         if (cid) {
             return NextResponse.json({
                 success: true,

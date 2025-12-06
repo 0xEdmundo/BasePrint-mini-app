@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPublicClient, http, parseAbi } from 'viem';
 import { base } from 'viem/chains';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import { getEtherscanData, getNeynarData, getBasenameData } from '../../../lib/api-helpers';
+
+// Initialize Redis from environment variables
+const redis = Redis.fromEnv();
 
 const client = createPublicClient({
     chain: base,
@@ -128,7 +131,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         // Check if we have a cached IPFS image for this token
         let imageUrl = dynamicImageUrl;
         try {
-            const ipfsCid = await kv.get(`nft:${tokenId}:ipfs`);
+            const ipfsCid = await redis.get(`nft:${tokenId}:ipfs`);
             if (ipfsCid && typeof ipfsCid === 'string') {
                 // Use IPFS gateway URL for the cached image
                 imageUrl = `https://nftstorage.link/ipfs/${ipfsCid}`;
