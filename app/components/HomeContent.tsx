@@ -380,19 +380,15 @@ export default function HomeContent() {
             return;
         }
 
-        // Farcaster Mini App link with tokenId parameter
-        const miniAppLink = `https://farcaster.xyz/miniapps/c_ODEPAqaSaM/baseprint`;
+        // NFT Frame link - shows NFT image with Launch button
+        const nftFrameLink = `https://baseprint.vercel.app/api/nft-frame/${mintedTokenId}`;
 
-        // Image Redirect Link (Short & Stable) - Pass address to force live data (bypassing contract indexer delay)
-        const imageLink = `https://baseprint.vercel.app/api/image-redirect/${mintedTokenId}?address=${address}`;
+        const castText = `🎉 My BasePrint ID has been minted!
 
-        const castText = `🎉 Congrats! Your BasePrint ID has been minted.
+Check out the ultimate on-chain identity card that combines Farcaster, Neynar, and Base history.`;
 
-You now own the ultimate on-chain identity card. Check out the unique NFT that combines your Farcaster, Neynar, and Base history.`;
-
-        // Open Warpcast composer with both Mini App link and Image link
-        // Note: Warpcast supports multiple embeds via array
-        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(miniAppLink)}&embeds[]=${encodeURIComponent(imageLink)}`;
+        // Open Warpcast composer with single Frame embed
+        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(nftFrameLink)}`;
 
         sdk.actions.openUrl(warpcastUrl);
     };
