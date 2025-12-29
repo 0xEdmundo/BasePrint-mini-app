@@ -209,6 +209,7 @@ export async function getEtherscanData(address: string) {
 
         // Analyze transfers
         const uniqueErc20Contracts = new Set<string>();
+        const userAddrLower = address.toLowerCase();
 
         transactions.forEach((tx: any) => {
             const to = tx.to?.toLowerCase() || '';
@@ -217,16 +218,27 @@ export async function getEtherscanData(address: string) {
             const asset = tx.asset || '';
             const rawContract = tx.rawContract || {};
             const rawContractAddr = rawContract.address?.toLowerCase() || '';
+            const value = tx.value || 0;
 
-            // Contract Deployment detection
-            // 1. to is null/empty (standard deployment)
+            // Contract Deployment detection - multiple checks
+            // 1. to is null/empty (standard deployment indicator)
             if (!tx.to || tx.to === '' || tx.to === null || tx.to === undefined) {
                 deployed++;
                 return;
             }
-            // 2. rawContract.address exists and is different from to (new contract created)
+            // 2. rawContract.address exists and differs from to (contract interaction created new contract)
             if (rawContractAddr && rawContractAddr !== to && category === 'external') {
                 deployed++;
+            }
+            // 3. User sent external TX with 0 value to new address (possible deployment)
+            // When deploying, user is 'from' and newly created contract is 'to'
+            if (from === userAddrLower && category === 'external' && value === 0 && !asset) {
+                // This might be a contract deployment - count unique 'to' addresses as potential deployments
+                // Skip if it's a known bridge or system address
+                if (!bridgeAddrs.includes(to) && !to.startsWith('0x4200000000000000000000000000')) {
+                    // Check if this is likely a new contract (first interaction)
+                    deployed++;
+                }
             }
 
             // Bridge Detection - comprehensive checks
