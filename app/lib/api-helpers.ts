@@ -189,6 +189,7 @@ export async function getEtherscanData(address: string) {
             '0x4200000000000000000000000000000000000007', // L2 Cross Domain Messenger
             // Third-party bridges
             '0x866e82a600a1414e583f7f13623f1ac5d58b0afa', // Across Bridge
+            '0x977f82a600a1414e583f7f13623f1ac5d58b1c0b', // Across Bridge Executor (found in user TX)
             '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae', // LI.FI
             '0x2a3dd3eb832af982ec71669e178424b10dca2ede', // Hop Protocol
             '0xd7aa9ba6caac7b0436c91396f22ca5a7f31664fc', // Synapse
