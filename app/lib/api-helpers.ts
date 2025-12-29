@@ -70,14 +70,14 @@ export async function getEtherscanData(address: string) {
         const [fromTransfersRes, toTransfersRes] = await Promise.all([
             alchemyRequest('alchemy_getAssetTransfers', [{
                 fromAddress: address,
-                category: ['external', 'erc20', 'erc721', 'erc1155', 'internal'],
+                category: ['external', 'erc20', 'erc721', 'erc1155'],
                 withMetadata: true,
                 order: 'asc',
                 maxCount: '0x3e8', // 1000 transfers max
             }]),
             alchemyRequest('alchemy_getAssetTransfers', [{
                 toAddress: address,
-                category: ['external', 'erc20', 'erc721', 'erc1155', 'internal'],
+                category: ['external', 'erc20', 'erc721', 'erc1155'],
                 withMetadata: true,
                 order: 'asc',
                 maxCount: '0x3e8', // 1000 transfers max
