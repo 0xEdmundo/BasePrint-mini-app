@@ -84,26 +84,22 @@ export async function getEtherscanData(address: string) {
             }]),
         ]);
 
-        // Main stats from outgoing transactions only (matches Etherscan txlist behavior)
+        // Get all transfers
         const fromTransfers = fromTransfersRes.result?.transfers || [];
-
-        // Incoming transfers only used for bridge detection
         const toTransfers = toTransfersRes.result?.transfers || [];
 
-        // Sort outgoing transfers by block timestamp
-        fromTransfers.sort((a: any, b: any) => {
+        // Combine ALL transfers for complete stats
+        const allTransfers = [...fromTransfers, ...toTransfers];
+
+        // Sort all transfers by block timestamp
+        allTransfers.sort((a: any, b: any) => {
             const tsA = a.metadata?.blockTimestamp ? new Date(a.metadata.blockTimestamp).getTime() : 0;
             const tsB = b.metadata?.blockTimestamp ? new Date(b.metadata.blockTimestamp).getTime() : 0;
             return tsA - tsB;
         });
 
-        // Remove duplicates by hash - ONLY from outgoing transactions
-        const transactions = fromTransfers.filter(
-            (tx: any, index: number, self: any[]) => index === self.findIndex((t) => t.hash === tx.hash)
-        );
-
-        // Also get unique incoming transactions for bridge detection
-        const incomingTransactions = toTransfers.filter(
+        // Remove duplicates by hash for main stats
+        const transactions = allTransfers.filter(
             (tx: any, index: number, self: any[]) => index === self.findIndex((t) => t.hash === tx.hash)
         );
 
@@ -217,22 +213,20 @@ export async function getEtherscanData(address: string) {
                 bridgeToEth++;
             }
 
+            // Bridge Detection (incoming: L1 -> Base)
+            const from = tx.from?.toLowerCase() || '';
+            const isFromBridge = bridgeAddrs.some(addr => from === addr);
+            if (isFromBridge) {
+                bridgeFromEth++;
+            }
+
             // DeFi Detection - count unique ERC-20 contract interactions
             if (category === 'erc20' && to) {
                 uniqueErc20Contracts.add(to);
             }
         });
 
-        // Analyze incoming transactions for bridgeFromEth (L1 -> Base)
-        incomingTransactions.forEach((tx: any) => {
-            const from = tx.from?.toLowerCase() || '';
-            const isFromBridge = bridgeAddrs.some(addr => from === addr);
-            if (isFromBridge) {
-                bridgeFromEth++;
-            }
-        });
-
-        // DeFi count: number of unique ERC-20 contracts interacted with (more accurate)
+        // DeFi count: number of unique ERC-20 contracts interacted with
         defiSwap = uniqueErc20Contracts.size;
 
         return {
