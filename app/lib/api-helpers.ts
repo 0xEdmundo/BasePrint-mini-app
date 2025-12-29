@@ -179,32 +179,51 @@ export async function getEtherscanData(address: string) {
         let defiStake = 0;
         let deployed = 0;
 
-        // Extended bridge addresses for Base
+        // Extended bridge addresses for Base (comprehensive list)
         const bridgeAddrs = [
+            // Official Base/Coinbase bridges
             '0x49048044d57e1c92a77f79988d21fa8faf74e97e', // Base Official Bridge L1
             '0x3154cf16ccdb4c6d922629664174b904d80f2c35', // Coinbase Bridge
             '0x4200000000000000000000000000000000000010', // L2 Standard Bridge
             '0x4200000000000000000000000000000000000016', // L2 To L1 Message Passer
-            '0x3154cf16ccdb4c6d922629664174b904d80f2c35', // Base Bridge
+            '0x4200000000000000000000000000000000000007', // L2 Cross Domain Messenger
+            // Third-party bridges
             '0x866e82a600a1414e583f7f13623f1ac5d58b0afa', // Across Bridge
             '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae', // LI.FI
             '0x2a3dd3eb832af982ec71669e178424b10dca2ede', // Hop Protocol
             '0xd7aa9ba6caac7b0436c91396f22ca5a7f31664fc', // Synapse
-        ];
+            '0x001e3f136c2f804854581da55ad7660a2b35def7', // Allbridge Core
+            '0x1efe2c85989d97febbd0743cdd79b9f0826314f6', // Allbridge CCTP
+            '0x43de2d77bf8027e25dbd179b491e8d64f38398aa', // deBridge DlnSource
+            '0xe7351fd770a37282b91d153ee690b63579d6dd7f', // deBridge DlnDestination
+            '0xaf54be5b6eec24d6bfacf1cce4eaf680a8239398', // Stargate
+            '0x45f1a95a4d3f3836523f5c83673c797f4d4d263b', // Stargate Router
+            '0x8731d54e9d02c286767d56ac03e8037c07e01e98', // Wormhole
+            '0x5a58505a96d1dbf8df91cb21b54419fc36e93fde', // Celer cBridge
+            '0xc30141b657f4216252dc59af2e7cdb9d8792e1b0', // Socket Gateway
+            '0x3a23f943181408eac424116af7b7790c94cb97a5', // Socket Gateway v2
+            '0xb8f275fbf7a959f4bce59999a2ef122a099e81a8', // Bungee
+            '0x0000000000001ff3684f28c67538d4d072c22734', // Orbiter Finance
+        ].map(addr => addr.toLowerCase());
 
         // Analyze transfers
-        // Analyze outgoing transactions for bridgeToEth, deployed, and basic stats
         const uniqueErc20Contracts = new Set<string>();
 
         transactions.forEach((tx: any) => {
             const to = tx.to?.toLowerCase() || '';
             const category = tx.category || '';
-            const asset = tx.asset || '';
+            const rawContract = tx.rawContract || {};
 
-            // Contract Deployment (to is null/undefined/empty)
+            // Contract Deployment detection
+            // 1. to is null/empty (standard deployment)
+            // 2. rawContract.address exists but to is null (contract creation)
             if (!tx.to || tx.to === '' || tx.to === null || tx.to === undefined) {
                 deployed++;
                 return;
+            }
+            // Also check if rawContract has a new contract address created
+            if (rawContract.address && rawContract.address !== to && category === 'external') {
+                deployed++;
             }
 
             // Bridge Detection (outgoing: Base -> L1)
