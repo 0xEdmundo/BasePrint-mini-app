@@ -3,7 +3,16 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
-const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY;
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
+const ALCHEMY_BASE_URL = `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
+
+// Known Base bridge contract addresses
+const BRIDGE_ADDRESSES = [
+  "0x49048044d57e1c92a77f79988d21fa8faf74e97e", // Base Official Bridge
+  "0x3154cf16ccdb4c6d922629664174b904d80f2c35", // Coinbase Bridge
+  "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
+  "0x4200000000000000000000000000000000000016", // L2 To L1 Message Passer
+].map(addr => addr.toLowerCase());
 
 type FarcasterUser = {
   fid: number;
@@ -16,14 +25,34 @@ type FarcasterUser = {
   };
 };
 
-type BaseScanTx = {
-  timeStamp?: string;
-  contractAddress?: string;
+type AlchemyTransfer = {
+  hash: string;
+  from: string;
+  to: string | null;
+  category: string;
+  metadata?: {
+    blockTimestamp?: string;
+  };
   [key: string]: any;
 };
 
-function computeBaseStats(txs: BaseScanTx[]) {
-  if (!Array.isArray(txs) || txs.length === 0) {
+// Alchemy API call helper
+async function alchemyRequest(method: string, params: any[]) {
+  const response = await fetch(ALCHEMY_BASE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+  });
+  return response.json();
+}
+
+function computeBaseStats(transfers: AlchemyTransfer[]) {
+  if (!Array.isArray(transfers) || transfers.length === 0) {
     return {
       txCount: 0,
       daysActive: 0,
@@ -38,23 +67,41 @@ function computeBaseStats(txs: BaseScanTx[]) {
   const daysSet = new Set<string>();
   let firstTs: number | null = null;
   let deployed = 0;
+  let bridge = 0;
+  let defi = 0;
 
-  for (const tx of txs) {
-    const tsMs = Number(tx.timeStamp || 0) * 1000;
-    if (!Number.isNaN(tsMs) && tsMs > 0) {
-      const dayStr = new Date(tsMs).toISOString().slice(0, 10);
-      daysSet.add(dayStr);
-      if (firstTs === null || tsMs < firstTs) firstTs = tsMs;
+  for (const tx of transfers) {
+    // Extract timestamp
+    const timestamp = tx.metadata?.blockTimestamp;
+    if (timestamp) {
+      const tsMs = new Date(timestamp).getTime();
+      if (!Number.isNaN(tsMs) && tsMs > 0) {
+        const dayStr = new Date(tsMs).toISOString().slice(0, 10);
+        daysSet.add(dayStr);
+        if (firstTs === null || tsMs < firstTs) firstTs = tsMs;
+      }
     }
 
-    if (
-      tx.contractAddress &&
-      tx.contractAddress !== "0x0000000000000000000000000000000000000000"
-    ) {
+    // Contract deployment (to is null)
+    if (!tx.to || tx.to === "") {
       deployed++;
+    }
+
+    // Bridge detection via known addresses
+    const toAddress = tx.to?.toLowerCase() || "";
+    const fromAddress = tx.from?.toLowerCase() || "";
+
+    if (BRIDGE_ADDRESSES.includes(toAddress) || BRIDGE_ADDRESSES.includes(fromAddress)) {
+      bridge++;
+    }
+
+    // DeFi detection: ERC-20 and ERC-721 transfers indicate DeFi/NFT activity
+    if (tx.category === "erc20" || tx.category === "erc721") {
+      defi++;
     }
   }
 
+  // Calculate longest streak
   const sortedDays = Array.from(daysSet).sort();
   let longestStreak = 0;
   let currentStreak = 0;
@@ -74,46 +121,70 @@ function computeBaseStats(txs: BaseScanTx[]) {
   const now = Date.now();
   const walletAge =
     firstTs !== null
-      ? Math.max(
-          1,
-          Math.round((now - firstTs) / (24 * 60 * 60 * 1000))
-        )
+      ? Math.max(1, Math.round((now - firstTs) / (24 * 60 * 60 * 1000)))
       : 0;
 
   return {
-    txCount: txs.length,
+    txCount: transfers.length,
     daysActive: daysSet.size,
     walletAge,
-    bridge: 0, // Şimdilik basit bırakıyoruz
-    defi: 0, // Şimdilik basit bırakıyoruz
+    bridge,
+    defi,
     deployed,
     longestStreak,
   };
 }
 
 async function fetchBaseStats(address: string) {
-  if (!BASESCAN_API_KEY) {
-    throw new Error("BASESCAN_API_KEY is not configured");
+  if (!ALCHEMY_API_KEY) {
+    throw new Error("ALCHEMY_API_KEY is not configured");
   }
 
-  const url = `https://api.basescan.org/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${BASESCAN_API_KEY}`;
+  try {
+    // Get all transfers FROM this address
+    const fromTransfersRes = await alchemyRequest("alchemy_getAssetTransfers", [
+      {
+        fromAddress: address,
+        category: ["external", "erc20", "erc721", "erc1155", "internal"],
+        withMetadata: true,
+        order: "asc",
+        maxCount: "0x3e8", // 1000 transfers max
+      },
+    ]);
 
-  const res = await fetch(url, {
-    next: { revalidate: 60 },
-  });
+    // Get all transfers TO this address
+    const toTransfersRes = await alchemyRequest("alchemy_getAssetTransfers", [
+      {
+        toAddress: address,
+        category: ["external", "erc20", "erc721", "erc1155", "internal"],
+        withMetadata: true,
+        order: "asc",
+        maxCount: "0x3e8", // 1000 transfers max
+      },
+    ]);
 
-  if (!res.ok) {
-    console.error("BaseScan error status:", res.status);
+    // Combine all transfers
+    const fromTransfers: AlchemyTransfer[] = fromTransfersRes.result?.transfers || [];
+    const toTransfers: AlchemyTransfer[] = toTransfersRes.result?.transfers || [];
+    const allTransfers = [...fromTransfers, ...toTransfers];
+
+    // Sort by block timestamp
+    allTransfers.sort((a, b) => {
+      const tsA = a.metadata?.blockTimestamp ? new Date(a.metadata.blockTimestamp).getTime() : 0;
+      const tsB = b.metadata?.blockTimestamp ? new Date(b.metadata.blockTimestamp).getTime() : 0;
+      return tsA - tsB;
+    });
+
+    // Remove duplicates by hash
+    const uniqueTransfers = allTransfers.filter(
+      (tx, index, self) => index === self.findIndex((t) => t.hash === tx.hash)
+    );
+
+    return computeBaseStats(uniqueTransfers);
+  } catch (err) {
+    console.error("Alchemy API error:", err);
     return computeBaseStats([]);
   }
-
-  const json = await res.json();
-
-  const txs: BaseScanTx[] = Array.isArray(json.result)
-    ? (json.result as BaseScanTx[])
-    : [];
-
-  return computeBaseStats(txs);
 }
 
 async function fetchFarcasterUser(address: string): Promise<FarcasterUser | null> {
