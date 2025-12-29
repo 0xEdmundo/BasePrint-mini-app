@@ -176,23 +176,40 @@ export async function getEtherscanData(address: string) {
         let defiStake = 0;
         let deployed = 0;
 
+        // Extended bridge addresses for Base
+        const bridgeAddrs = [
+            '0x49048044d57e1c92a77f79988d21fa8faf74e97e', // Base Official Bridge L1
+            '0x3154cf16ccdb4c6d922629664174b904d80f2c35', // Coinbase Bridge
+            '0x4200000000000000000000000000000000000010', // L2 Standard Bridge
+            '0x4200000000000000000000000000000000000016', // L2 To L1 Message Passer
+            '0x3154cf16ccdb4c6d922629664174b904d80f2c35', // Base Bridge
+            '0x866e82a600a1414e583f7f13623f1ac5d58b0afa', // Across Bridge
+            '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae', // LI.FI
+            '0x2a3dd3eb832af982ec71669e178424b10dca2ede', // Hop Protocol
+            '0xd7aa9ba6caac7b0436c91396f22ca5a7f31664fc', // Synapse
+        ];
+
         // Analyze transfers
         transactions.forEach((tx: any) => {
             const to = tx.to?.toLowerCase() || '';
             const from = tx.from?.toLowerCase() || '';
             const category = tx.category || '';
+            const rawContract = tx.rawContract || {};
 
-            // Contract Deployment (to is null/empty)
-            if (!tx.to || tx.to === '') {
+            // Contract Deployment (to is null/undefined/empty OR category is 'specialnft' with no 'to')
+            if (!tx.to || tx.to === '' || tx.to === null || tx.to === undefined) {
                 deployed++;
                 return;
             }
 
-            // Bridge Detection
-            if (BRIDGE_ADDRESSES.includes(to)) {
+            // Bridge Detection - check both to and from against all known bridge addresses
+            const isToBridge = bridgeAddrs.some(addr => to === addr || to.includes(addr.slice(2, 10)));
+            const isFromBridge = bridgeAddrs.some(addr => from === addr || from.includes(addr.slice(2, 10)));
+
+            if (isToBridge) {
                 bridgeToEth++;
             }
-            if (BRIDGE_ADDRESSES.includes(from)) {
+            if (isFromBridge) {
                 bridgeFromEth++;
             }
 
