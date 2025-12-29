@@ -211,31 +211,43 @@ export async function getEtherscanData(address: string) {
 
         transactions.forEach((tx: any) => {
             const to = tx.to?.toLowerCase() || '';
+            const from = tx.from?.toLowerCase() || '';
             const category = tx.category || '';
+            const asset = tx.asset || '';
             const rawContract = tx.rawContract || {};
+            const rawContractAddr = rawContract.address?.toLowerCase() || '';
 
             // Contract Deployment detection
             // 1. to is null/empty (standard deployment)
-            // 2. rawContract.address exists but to is null (contract creation)
             if (!tx.to || tx.to === '' || tx.to === null || tx.to === undefined) {
                 deployed++;
                 return;
             }
-            // Also check if rawContract has a new contract address created
-            if (rawContract.address && rawContract.address !== to && category === 'external') {
+            // 2. rawContract.address exists and is different from to (new contract created)
+            if (rawContractAddr && rawContractAddr !== to && category === 'external') {
                 deployed++;
             }
 
-            // Bridge Detection (outgoing: Base -> L1)
-            const isToBridge = bridgeAddrs.some(addr => to === addr);
-            if (isToBridge) {
+            // Bridge Detection - comprehensive checks
+            // Check if to/from matches any bridge address (exact match)
+            const isToBridgeExact = bridgeAddrs.includes(to);
+            const isFromBridgeExact = bridgeAddrs.includes(from);
+
+            // Check if to/from starts with known L2 system prefix (0x4200...)
+            const isToL2System = to.startsWith('0x4200000000000000000000000000');
+            const isFromL2System = from.startsWith('0x4200000000000000000000000000');
+
+            // Check rawContract address for bridge interaction
+            const isRawContractBridge = bridgeAddrs.includes(rawContractAddr) ||
+                rawContractAddr.startsWith('0x4200000000000000000000000000');
+
+            // Bridge outgoing (Base -> L1): sending to bridge contract
+            if (isToBridgeExact || (isToL2System && category === 'external')) {
                 bridgeToEth++;
             }
 
-            // Bridge Detection (incoming: L1 -> Base)
-            const from = tx.from?.toLowerCase() || '';
-            const isFromBridge = bridgeAddrs.some(addr => from === addr);
-            if (isFromBridge) {
+            // Bridge incoming (L1 -> Base): receiving from bridge contract
+            if (isFromBridgeExact || isFromL2System || isRawContractBridge) {
                 bridgeFromEth++;
             }
 
