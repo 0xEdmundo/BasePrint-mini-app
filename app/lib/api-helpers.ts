@@ -103,6 +103,29 @@ export async function getEtherscanData(address: string) {
             (tx: any, index: number, self: any[]) => index === self.findIndex((t) => t.hash === tx.hash)
         );
 
+        // Get unique TX hashes from outgoing transfers (user-initiated)
+        const outgoingHashes = fromTransfers
+            .filter((tx: any) => tx.from?.toLowerCase() === address.toLowerCase())
+            .map((tx: any) => tx.hash)
+            .filter((hash: string, index: number, self: string[]) => self.indexOf(hash) === index)
+            .slice(0, 50); // Limit to 50 for performance
+
+        // Batch fetch receipts to detect contract deployments
+        let deployed = 0;
+        if (outgoingHashes.length > 0) {
+            const receiptPromises = outgoingHashes.map((hash: string) =>
+                alchemyRequest('eth_getTransactionReceipt', [hash])
+            );
+            const receipts = await Promise.all(receiptPromises);
+
+            receipts.forEach((res: any) => {
+                const receipt = res.result;
+                if (receipt && receipt.contractAddress) {
+                    deployed++;
+                }
+            });
+        }
+
         const txCount = transactions.length;
         if (txCount === 0) return defaultStats;
 
@@ -177,7 +200,7 @@ export async function getEtherscanData(address: string) {
         let defiBorrow = 0;
         let defiSwap = 0;
         let defiStake = 0;
-        let deployed = 0;
+        // Note: deployed is already calculated above via eth_getTransactionReceipt
 
         // Extended bridge addresses for Base (comprehensive list)
         const bridgeAddrs = [
@@ -207,7 +230,7 @@ export async function getEtherscanData(address: string) {
             '0x0000000000001ff3684f28c67538d4d072c22734', // Orbiter Finance
         ].map(addr => addr.toLowerCase());
 
-        // Analyze transfers
+        // Analyze transfers for bridge detection
         const uniqueErc20Contracts = new Set<string>();
         const userAddrLower = address.toLowerCase();
 
@@ -215,31 +238,6 @@ export async function getEtherscanData(address: string) {
             const to = tx.to?.toLowerCase() || '';
             const from = tx.from?.toLowerCase() || '';
             const category = tx.category || '';
-            const asset = tx.asset || '';
-            const rawContract = tx.rawContract || {};
-            const rawContractAddr = rawContract.address?.toLowerCase() || '';
-            const value = tx.value || 0;
-
-            // Contract Deployment detection - multiple checks
-            // 1. to is null/empty (standard deployment indicator)
-            if (!tx.to || tx.to === '' || tx.to === null || tx.to === undefined) {
-                deployed++;
-                return;
-            }
-            // 2. rawContract.address exists and differs from to (contract interaction created new contract)
-            if (rawContractAddr && rawContractAddr !== to && category === 'external') {
-                deployed++;
-            }
-            // 3. User sent external TX with 0 value to new address (possible deployment)
-            // When deploying, user is 'from' and newly created contract is 'to'
-            if (from === userAddrLower && category === 'external' && value === 0 && !asset) {
-                // This might be a contract deployment - count unique 'to' addresses as potential deployments
-                // Skip if it's a known bridge or system address
-                if (!bridgeAddrs.includes(to) && !to.startsWith('0x4200000000000000000000000000')) {
-                    // Check if this is likely a new contract (first interaction)
-                    deployed++;
-                }
-            }
 
             // Bridge Detection - comprehensive checks
             // Check if to/from matches any bridge address (exact match)
@@ -250,17 +248,13 @@ export async function getEtherscanData(address: string) {
             const isToL2System = to.startsWith('0x4200000000000000000000000000');
             const isFromL2System = from.startsWith('0x4200000000000000000000000000');
 
-            // Check rawContract address for bridge interaction
-            const isRawContractBridge = bridgeAddrs.includes(rawContractAddr) ||
-                rawContractAddr.startsWith('0x4200000000000000000000000000');
-
             // Bridge outgoing (Base -> L1): sending to bridge contract
             if (isToBridgeExact || (isToL2System && category === 'external')) {
                 bridgeToEth++;
             }
 
             // Bridge incoming (L1 -> Base): receiving from bridge contract
-            if (isFromBridgeExact || isFromL2System || isRawContractBridge) {
+            if (isFromBridgeExact || isFromL2System) {
                 bridgeFromEth++;
             }
 
