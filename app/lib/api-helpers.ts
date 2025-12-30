@@ -1,5 +1,6 @@
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || '';
 const ALCHEMY_BASE_URL = `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || '';
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
 
 // Known Base bridge contract addresses (for bridge detection)
@@ -41,7 +42,7 @@ async function alchemyRequest(method: string, params: any[]) {
 async function fetchBridgeAndDeployedFromBasescan(address: string): Promise<{ bridge: number; deployed: number }> {
     try {
         // Etherscan API v2 with Base chainid (8453)
-        const url = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc`;
+        const url = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
 
         const response = await fetch(url, { next: { revalidate: 300 } }); // Cache 5 minutes
         if (!response.ok) {
