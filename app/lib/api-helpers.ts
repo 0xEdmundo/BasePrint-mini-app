@@ -182,9 +182,37 @@ export async function getEtherscanData(address: string) {
         });
 
         // Remove duplicates by hash for main stats
-        const transactions = allTransfers.filter(
+        const allUniqueTransactions = allTransfers.filter(
             (tx: any, index: number, self: any[]) => index === self.findIndex((t) => t.hash === tx.hash)
         );
+
+        // Filter out simple ETH sends/receives - only count contract interactions
+        // Keep: ERC-20, ERC-721, ERC-1155 transfers (token interactions)
+        // Keep: External transfers TO contracts (smart contract calls)
+        // Exclude: Simple external ETH transfers between wallets
+        const transactions = allUniqueTransactions.filter((tx: any) => {
+            const category = tx.category || '';
+
+            // Always count token transfers (these are contract interactions)
+            if (category === 'erc20' || category === 'erc721' || category === 'erc1155') {
+                return true;
+            }
+
+            // For external (ETH) transfers, only count if:
+            // - the raw contract has data (contract call)
+            // - or the rawContract.value exists with address (not simple transfer)
+            if (category === 'external') {
+                const rawContract = tx.rawContract || {};
+                // If rawContract has an address field (contract interaction), keep it
+                if (rawContract.address) {
+                    return true;
+                }
+                // Simple ETH transfer without contract interaction - exclude
+                return false;
+            }
+
+            return true;
+        });
 
         // deployed count comes from Etherscan (bridgeDeployedData.deployed above)
 
