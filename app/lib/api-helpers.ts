@@ -2,28 +2,24 @@ const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || '';
 const ALCHEMY_BASE_URL = `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
 
-// Known Base bridge contract addresses
+// Known Base bridge contract addresses (for bridge detection)
 const BRIDGE_ADDRESSES = [
-    '0x49048044d57e1c92a77f79988d21fa8faf74e97e', // Base Official Bridge
+    '0x49048044d57e1c92a77f79988d21fa8faf74e97e', // Base Official Bridge L1
     '0x3154cf16ccdb4c6d922629664174b904d80f2c35', // Coinbase Bridge
     '0x4200000000000000000000000000000000000010', // L2 Standard Bridge
     '0x4200000000000000000000000000000000000016', // L2 To L1 Message Passer
+    '0x4200000000000000000000000000000000000007', // L2 Cross Domain Messenger
+    '0x866e82a600a1414e583f7f13623f1ac5d58b0afa', // Across Bridge
+    '0x977f82a600a1414e583f7f13623f1ac5d58b1c0b', // Across Bridge Executor
 ].map(addr => addr.toLowerCase());
 
-// Common DeFi method IDs for categorization
-const DEFI_SWAP_METHODS = [
-    '0x38ed1739', // swapExactTokensForTokens
-    '0x7ff36ab5', // swapExactETHForTokens
-    '0x18cbafe5', // swapExactTokensForETH
-];
-const DEFI_STAKE_METHODS = [
-    '0xa694fc3a', // stake
-    '0x2e1a7d4d', // withdraw
-    '0x3ccfd60b', // withdraw (another variant)
-];
-const DEFI_LEND_METHODS = [
-    '0xe2bbb158', // deposit
-    '0xb6b55f25', // deposit (another variant)
+// Bridge method IDs for detection
+const BRIDGE_METHOD_IDS = [
+    '0x32b7006d', // depositETH
+    '0x49228978', // bridgeETH
+    '0x5cae9c06', // withdraw
+    '0x9a2ac9d9', // bridgeAsset
+    '0xd764ad0b', // relayMessage
 ];
 
 // Alchemy API call helper
@@ -39,6 +35,62 @@ async function alchemyRequest(method: string, params: any[]) {
         }),
     });
     return response.json();
+}
+
+// Basescan API for bridge and contract deployment detection (free tier)
+async function fetchBridgeAndDeployedFromBasescan(address: string): Promise<{ bridge: number; deployed: number }> {
+    try {
+        // Etherscan API v2 with Base chainid (8453)
+        const url = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc`;
+
+        const response = await fetch(url, { next: { revalidate: 300 } }); // Cache 5 minutes
+        if (!response.ok) {
+            console.error('Basescan API error:', response.status);
+            return { bridge: 0, deployed: 0 };
+        }
+
+        const data = await response.json();
+        if (data.status !== '1' || !Array.isArray(data.result)) {
+            return { bridge: 0, deployed: 0 };
+        }
+
+        let bridge = 0;
+        let deployed = 0;
+
+        data.result.forEach((tx: any) => {
+            // Contract deployment: to is empty and contractAddress exists
+            if ((!tx.to || tx.to === '') && tx.contractAddress) {
+                deployed++;
+                return;
+            }
+
+            const to = tx.to?.toLowerCase() || '';
+            const from = tx.from?.toLowerCase() || '';
+            const methodId = tx.methodId || (tx.input?.substring(0, 10) || '');
+
+            // Bridge detection via address
+            if (BRIDGE_ADDRESSES.includes(to) || BRIDGE_ADDRESSES.includes(from)) {
+                bridge++;
+                return;
+            }
+
+            // Bridge detection via L2 system addresses
+            if (to.startsWith('0x4200000000000000000000000000') || from.startsWith('0x4200000000000000000000000000')) {
+                bridge++;
+                return;
+            }
+
+            // Bridge detection via method ID
+            if (BRIDGE_METHOD_IDS.includes(methodId)) {
+                bridge++;
+            }
+        });
+
+        return { bridge, deployed };
+    } catch (error) {
+        console.error('Basescan fetch error:', error);
+        return { bridge: 0, deployed: 0 };
+    }
 }
 
 // --- ALCHEMY DATA (replaces Etherscan) ---
@@ -66,8 +118,9 @@ export async function getEtherscanData(address: string) {
     }
 
     try {
-        // Fetch transfers FROM and TO this address using Alchemy
-        const [fromTransfersRes, toTransfersRes] = await Promise.all([
+        // Fetch transfers FROM and TO this address using Alchemy (main stats)
+        // AND fetch bridge/deployed from Etherscan in parallel
+        const [fromTransfersRes, toTransfersRes, bridgeDeployedData] = await Promise.all([
             alchemyRequest('alchemy_getAssetTransfers', [{
                 fromAddress: address,
                 category: ['external', 'erc20', 'erc721', 'erc1155'],
@@ -82,8 +135,12 @@ export async function getEtherscanData(address: string) {
                 order: 'asc',
                 maxCount: '0x3e8', // 1000 transfers max
             }]),
+            fetchBridgeAndDeployedFromBasescan(address), // Etherscan for bridge/deployed
         ]);
 
+        // Get bridge and deployed counts from Etherscan
+        const etherscanBridge = bridgeDeployedData.bridge;
+        const deployed = bridgeDeployedData.deployed;
         // Get all transfers
         const fromTransfers = fromTransfersRes.result?.transfers || [];
         const toTransfers = toTransfersRes.result?.transfers || [];
@@ -103,28 +160,7 @@ export async function getEtherscanData(address: string) {
             (tx: any, index: number, self: any[]) => index === self.findIndex((t) => t.hash === tx.hash)
         );
 
-        // Get unique TX hashes from outgoing transfers (user-initiated)
-        const outgoingHashes = fromTransfers
-            .filter((tx: any) => tx.from?.toLowerCase() === address.toLowerCase())
-            .map((tx: any) => tx.hash)
-            .filter((hash: string, index: number, self: string[]) => self.indexOf(hash) === index)
-            .slice(0, 50); // Limit to 50 for performance
-
-        // Batch fetch receipts to detect contract deployments
-        let deployed = 0;
-        if (outgoingHashes.length > 0) {
-            const receiptPromises = outgoingHashes.map((hash: string) =>
-                alchemyRequest('eth_getTransactionReceipt', [hash])
-            );
-            const receipts = await Promise.all(receiptPromises);
-
-            receipts.forEach((res: any) => {
-                const receipt = res.result;
-                if (receipt && receipt.contractAddress) {
-                    deployed++;
-                }
-            });
-        }
+        // deployed count comes from Etherscan (bridgeDeployedData.deployed above)
 
         const txCount = transactions.length;
         if (txCount === 0) return defaultStats;
@@ -267,13 +303,17 @@ export async function getEtherscanData(address: string) {
         // DeFi count: number of unique ERC-20 contracts interacted with
         defiSwap = uniqueErc20Contracts.size;
 
+        // Combine bridge counts: use max of Alchemy and Etherscan detection
+        // This ensures we catch bridges from both sources without double counting
+        const totalBridge = Math.max(bridgeToEth + bridgeFromEth, etherscanBridge);
+
         return {
             txCount,
             daysActive: uniqueDays.size,
             longestStreak,
             currentStreak,
-            bridgeToEth,
-            bridgeFromEth,
+            bridgeToEth: Math.max(bridgeToEth, Math.floor(etherscanBridge / 2)),
+            bridgeFromEth: Math.max(bridgeFromEth, Math.ceil(etherscanBridge / 2)),
             defiLend,
             defiBorrow,
             defiSwap,
