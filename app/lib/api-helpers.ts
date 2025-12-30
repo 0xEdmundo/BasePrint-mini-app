@@ -58,6 +58,7 @@ async function fetchBridgeAndDeployedFromBasescan(address: string): Promise<{ br
         let bridge = 0;
         let deployed = 0;
 
+        // Check normal transactions
         data.result.forEach((tx: any) => {
             // Contract deployment: to is empty and contractAddress exists
             if ((!tx.to || tx.to === '') && tx.contractAddress) {
@@ -86,6 +87,30 @@ async function fetchBridgeAndDeployedFromBasescan(address: string): Promise<{ br
                 bridge++;
             }
         });
+
+        // Also check internal transactions for bridge detection (bridge deposits often appear here)
+        try {
+            const internalUrl = `https://api.etherscan.io/v2/api?chainid=8453&module=account&action=txlistinternal&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
+            const internalRes = await fetch(internalUrl, { next: { revalidate: 300 } });
+            if (internalRes.ok) {
+                const internalData = await internalRes.json();
+                if (internalData.status === '1' && Array.isArray(internalData.result)) {
+                    internalData.result.forEach((tx: any) => {
+                        const from = tx.from?.toLowerCase() || '';
+                        const to = tx.to?.toLowerCase() || '';
+
+                        // Bridge detection via address
+                        if (BRIDGE_ADDRESSES.includes(from) || BRIDGE_ADDRESSES.includes(to)) {
+                            bridge++;
+                        } else if (from.startsWith('0x4200000000000000000000000000') || to.startsWith('0x4200000000000000000000000000')) {
+                            bridge++;
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('Internal tx fetch error:', e);
+        }
 
         return { bridge, deployed };
     } catch (error) {
